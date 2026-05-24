@@ -15,14 +15,14 @@
     "naiou": "src/main.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/three": "0.177.0"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
     "@opentui/core": "^0.2.15",
-    "@opentui/three": "^0.2.15",
-    "three": "^0.178.0"
+    "@opentui/three": "^0.2.15"
   }
 }

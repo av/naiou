@@ -24,8 +24,8 @@
 - label: scripts/build.sh compiles src/main.ts with bun build --compile and writes the executable to ./naiou
   command: test -f scripts/build.sh && rg -q "bun build --compile src/main.ts --outfile naiou" scripts/build.sh
   tags: [implemented]
-- label: src/app.ts owns the OpenTUI renderer lifecycle, root renderables, resize handling, and key input subscriptions
-  command: test -f src/app.ts && rg -q "createCliRenderer" src/app.ts && rg -q "renderer.root" src/app.ts && rg -q "resize" src/app.ts && rg -q "keyInput" src/app.ts
+- label: src/app.ts owns the OpenTUI renderer lifecycle and key input subscriptions while src/hyperspace.ts owns visual rendering and resize handling
+  command: test -f src/app.ts && test -f src/hyperspace.ts && rg -q "createCliRenderer" src/app.ts && rg -q "keyInput" src/app.ts && ! rg -q "renderer\.root|Box\(" src/app.ts && rg -q "renderer\.on\(\"resize\"" src/hyperspace.ts && rg -q "setSize" src/hyperspace.ts
   tags: [implemented]
 - label: src/theme.ts centralizes reusable color tokens including muted grey, yes green, no red, star colors, and background color
   command: test -f src/theme.ts && rg -q "muted" src/theme.ts && rg -q "yes" src/theme.ts && rg -q "no" src/theme.ts && rg -q "star" src/theme.ts && rg -q "background|bg" src/theme.ts
@@ -48,6 +48,8 @@
   tags: [implemented]
 - the normal-space and hyperspace scenes draw visible stars or streaks directly in the OpenTUI buffer even when the Three renderer is unavailable or occluded @implemented
 - the final planet uses shaded ASCII characters and renders the answer text as ASCII art on the planet @implemented
+- the OpenTUI visual experience is rendered through the hyperspace ThreeCliRenderer scene rather than a separate BoxRenderable overlay @implemented
+- question letters, cursor, status text, final planet, and answer text are scene objects inside the hyperspace renderer @implemented
 
 ## agent
 - label: the agent loads configuration from ${NAIOU_HOME:-~/.naiou}/config.json while preserving shell environment values as higher priority

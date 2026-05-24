@@ -1,32 +1,77 @@
-import {
+import { ThreeCliRenderer, THREE } from "@opentui/three";
+import type * as ThreeCore from "three/src/Three.js";
+import { RGBA, type CliRenderer, type KeyEvent } from "@opentui/core";
+import { renderAsciiText, type AsciiArt } from "./ascii.js";
+import { hex } from "./theme.js";
+
+const Three = THREE as unknown as typeof ThreeCore;
+const {
   AdditiveBlending,
   BufferGeometry,
+  DoubleSide,
   Float32BufferAttribute,
   Group,
   LineBasicMaterial,
   LineSegments,
+  Mesh,
+  MeshBasicMaterial,
   PerspectiveCamera,
+  PlaneGeometry,
   Points,
   PointsMaterial,
   Scene,
-} from "three";
-import { ThreeCliRenderer } from "@opentui/three";
-import { RGBA, type CliRenderer, type KeyEvent } from "@opentui/core";
-import { hex } from "./theme.js";
+} = Three;
+
+type ThreeGroup = InstanceType<typeof Three.Group>;
+type ThreePerspectiveCamera = InstanceType<typeof Three.PerspectiveCamera>;
+type ThreeFloat32BufferAttribute = InstanceType<typeof Three.Float32BufferAttribute>;
 
 export type Decision = "Yes" | "No";
-export type HyperspacePhase = "idle" | "spool" | "punch" | "cruise" | "tint" | "exit" | "final";
+export type HyperspacePhase = "idle" | "spool" | "punch" | "cruise" | "tint" | "decel" | "exit" | "final";
 
-const STAR_COUNT = 7000;
+const STAR_COUNT = 12000;
 const STAR_RADIUS = 25;
 const STREAK_DZ = 0.3;
+const SPOOL_DUR = 2.5;
+const PUNCH_DUR = 2.0;
+const TINT_DUR = 1.2;
+const DECEL_DUR = 2.5;
+const EXIT_DUR = 2.0;
+const HUD_Z = -10;
+const STATUS_Z = -8;
+const PLANET_Z = -12;
 
-interface Starfield extends Group {
+interface Starfield extends ThreeGroup {
   baseLineColors: Float32Array;
   baseDotColors: Float32Array;
-  lineColors: Float32BufferAttribute;
-  dotColors: Float32BufferAttribute;
+  lineColors: ThreeFloat32BufferAttribute;
+  dotColors: ThreeFloat32BufferAttribute;
 }
+
+type SceneText = {
+  group: ThreeGroup;
+  key: string;
+  dispose(): void;
+  set(text: string, options: TextOptions): void;
+};
+
+type TextOptions = {
+  maxColumns: number;
+  maxRows: number;
+  cellSize: number;
+  color: string;
+  align?: "center" | "left";
+  x: number;
+  y: number;
+  z: number;
+};
+
+type Planet = {
+  group: ThreeGroup;
+  key: string;
+  dispose(): void;
+  set(label: string, decision: Decision, scale: number, x: number, y: number, z: number): void;
+};
 
 function hexRgb(color: string): [number, number, number] {
   return [
@@ -42,6 +87,145 @@ function mixColors(target: Float32Array, base: Float32Array, tint: [number, numb
     target[i + 1] = tint ? base[i + 1]! * (1 - amount) + tint[1] * amount : base[i + 1]!;
     target[i + 2] = tint ? base[i + 2]! * (1 - amount) + tint[2] * amount : base[i + 2]!;
   }
+}
+
+function visibleSize(camera: ThreePerspectiveCamera, distance: number) {
+  const height = 2 * Math.tan((camera.fov * Math.PI) / 360) * distance;
+
+  return { width: height * camera.aspect, height };
+}
+
+function makeMaterial(color: string) {
+  return new MeshBasicMaterial({
+    color,
+    transparent: false,
+    opacity: 1,
+    depthWrite: false,
+    depthTest: false,
+    side: DoubleSide,
+  });
+}
+
+function disposeGroup(group: ThreeGroup) {
+  for (const child of [...group.children]) {
+    group.remove(child);
+    if (child instanceof Mesh) {
+      child.geometry.dispose();
+      if (Array.isArray(child.material)) {
+        for (const material of child.material) material.dispose();
+      } else {
+        child.material.dispose();
+      }
+    }
+  }
+}
+
+function createSceneText(parent: ThreeGroup): SceneText {
+  const group = new Group();
+  parent.add(group);
+
+  return {
+    group,
+    key: "",
+    dispose() {
+      disposeGroup(group);
+      parent.remove(group);
+    },
+    set(text, options) {
+      const key = JSON.stringify({ text, ...options });
+      if (key === this.key) return;
+      this.key = key;
+      disposeGroup(group);
+
+      const art = renderAsciiText(text, options.maxColumns, options.maxRows);
+      const material = makeMaterial(options.color);
+      const geometry = new PlaneGeometry(options.cellSize * 0.82, options.cellSize * 0.82);
+      const startX = options.align === "left" ? 0 : -((art.width - 1) * options.cellSize) / 2;
+      const startY = ((art.height - 1) * options.cellSize) / 2;
+
+      group.position.set(options.x, options.y, options.z);
+
+      for (let row = 0; row < art.lines.length; row++) {
+        const line = art.lines[row]!;
+        for (let col = 0; col < line.length; col++) {
+          if (line[col] === " ") continue;
+          const mesh = new Mesh(geometry.clone(), material.clone());
+          mesh.renderOrder = 1000;
+          mesh.position.set(startX + col * options.cellSize, startY - row * options.cellSize, 0);
+          group.add(mesh);
+        }
+      }
+    },
+  };
+}
+
+function createPlanet(parent: ThreeGroup): Planet {
+  const group = new Group();
+  parent.add(group);
+
+  return {
+    group,
+    key: "",
+    dispose() {
+      disposeGroup(group);
+      parent.remove(group);
+    },
+    set(label, decision, scale, x, y, z) {
+      const key = `${label}:${decision}:${scale.toFixed(2)}:${x.toFixed(2)}:${y.toFixed(2)}:${z.toFixed(2)}`;
+      if (key === this.key) return;
+      this.key = key;
+      disposeGroup(group);
+      group.position.set(x, y, z);
+
+      const radius = 1.4 * Math.max(0.05, scale);
+      const cell = Math.max(0.035, 0.11 * scale);
+      const tint = decision === "Yes" ? hex.yes : hex.no;
+      const shade = decision === "Yes" ? "#14532D" : "#7F1D1D";
+      const shadeChars = " .:-=+*#%@";
+
+      for (let row = -15; row <= 15; row++) {
+        for (let col = -30; col <= 30; col++) {
+          const px = (col / 30) * radius * 1.9;
+          const py = (row / 15) * radius;
+          const nx = px / 1.9;
+          const d = Math.sqrt(nx * nx + py * py);
+          if (d > radius) continue;
+
+          const highlight = Math.max(0, 1 - Math.sqrt((nx + radius * 0.35) ** 2 + (py + radius * 0.35) ** 2) / radius);
+          const limb = 1 - d / radius;
+          const brightness = Math.max(0, Math.min(1, limb * 0.75 + highlight * 0.55 + (px < 0 ? 0.08 : -0.08)));
+          const color = shadeChars[Math.floor(brightness * (shadeChars.length - 1))]! < "=" ? shade : tint;
+          const mesh = new Mesh(new PlaneGeometry(cell * 0.9, cell * 0.9), makeMaterial(color));
+          mesh.renderOrder = 1000;
+          mesh.position.set(px, py, 0);
+          group.add(mesh);
+        }
+      }
+
+      const art = buildTextMeshes(renderAsciiText(label, 24, 7), 0.16 * scale, "#E5E7EB");
+      art.position.set(0, 0, 0.03);
+      group.add(art);
+    },
+  };
+}
+
+function buildTextMeshes(art: AsciiArt, cellSize: number, color: string): ThreeGroup {
+  const group = new Group();
+  const startX = -((art.width - 1) * cellSize) / 2;
+  const startY = ((art.height - 1) * cellSize) / 2;
+
+  for (let row = 0; row < art.lines.length; row++) {
+    const line = art.lines[row]!;
+    for (let col = 0; col < line.length; col++) {
+      if (line[col] === " ") continue;
+      const mesh = new Mesh(new PlaneGeometry(cellSize * 0.82, cellSize * 0.82), makeMaterial(color));
+      mesh.renderOrder = 1001;
+      mesh.position.set(startX + col * cellSize, startY - row * cellSize, 0);
+      group.add(mesh);
+    }
+  }
+
+  return group;
 }
 
 export function createStarfield(): Starfield {
@@ -121,14 +305,18 @@ export function createStarfield(): Starfield {
 }
 
 export interface HyperspaceController {
+  setQuestion(question: string): void;
+  setStatus(status: string): void;
   startProcessing(): void;
-  resolveDecision(decision: Decision): void;
+  resolveDecision(decision: Decision, label?: string): void;
   reset(): void;
   getPhase(): HyperspacePhase;
   cleanup(): void;
 }
 
 export async function createHyperspace(renderer: CliRenderer): Promise<HyperspaceController> {
+  renderer.start();
+
   const engine = new ThreeCliRenderer(renderer, {
     width: Math.max(1, renderer.terminalWidth),
     height: Math.max(1, renderer.terminalHeight),
@@ -147,8 +335,18 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
   const stars = createStarfield();
   scene.add(stars);
 
+  const hud = new Group();
+  scene.add(hud);
+  const questionText = createSceneText(hud);
+  const statusText = createSceneText(hud);
+  const controlsText = createSceneText(hud);
+  const planet = createPlanet(hud);
+
   let phase: HyperspacePhase = "idle";
   let decision: Decision | null = null;
+  let finalLabel = "";
+  let question = "";
+  let status = "processing";
   let phaseTime = 0;
   let cameraZ = 0;
   let groupZ = 0;
@@ -157,6 +355,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
   let roll = 0;
   let scaleZ = 1;
   let driftAngle = 0;
+  let lastCursor = false;
 
   const setPhase = (next: HyperspacePhase) => {
     phase = next;
@@ -167,10 +366,75 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
     engine.setSize(Math.max(1, w), Math.max(1, h));
     camera.aspect = engine.aspectRatio;
     camera.updateProjectionMatrix();
+    questionText.key = "";
+    statusText.key = "";
+    controlsText.key = "";
+    planet.key = "";
   };
 
   const onKey = (_key: KeyEvent) => {
     // App owns input; this listener exists so cleanup releases every local subscription.
+  };
+
+  const updateHud = () => {
+    const size = visibleSize(camera, Math.abs(HUD_Z));
+    const terminalW = Math.max(20, renderer.terminalWidth);
+    const terminalH = Math.max(10, renderer.terminalHeight);
+    const cursor = phase === "idle" && Math.floor(Date.now() / 480) % 2 === 0;
+    const baseText = question || "ASK";
+    const displayQuestion = cursor ? `${baseText}_` : baseText;
+    lastCursor = cursor;
+
+    questionText.group.visible = phase !== "final";
+    statusText.group.visible = phase !== "idle";
+    controlsText.group.visible = true;
+    planet.group.visible = phase === "final";
+
+    if (questionText.group.visible) {
+      const art = renderAsciiText(displayQuestion, Math.floor(terminalW * 0.7), Math.floor(terminalH * 0.7));
+      const cellSize = Math.min((size.width * 0.7) / Math.max(1, art.width), (size.height * 0.55) / Math.max(1, art.height), 0.28);
+      questionText.set(displayQuestion, {
+        maxColumns: Math.floor(terminalW * 0.7),
+        maxRows: Math.floor(terminalH * 0.7),
+        cellSize,
+        color: phase === "idle" ? "#E5E7EB" : "#9CA3AF",
+        x: 0,
+        y: 0,
+        z: HUD_Z,
+      });
+    }
+
+    const statusSize = visibleSize(camera, Math.abs(STATUS_Z));
+    if (statusText.group.visible) {
+      statusText.set(status, {
+        maxColumns: Math.floor(terminalW * 0.8),
+        maxRows: 5,
+        cellSize: Math.min(0.055, (statusSize.width * 0.75) / Math.max(1, status.length * 4)),
+        color: "#6B7280",
+        x: -statusSize.width * 0.38,
+        y: statusSize.height * 0.43,
+        z: STATUS_Z,
+        align: "left",
+      });
+    }
+
+    const prompt = phase === "final" ? "ENTER TO ASK AGAIN  ESC TO QUIT" : "ENTER TO ASK  ESC TO QUIT";
+    controlsText.set(prompt, {
+      maxColumns: Math.floor(terminalW * 0.8),
+      maxRows: 5,
+      cellSize: Math.min(0.05, (statusSize.width * 0.75) / Math.max(1, prompt.length * 4)),
+      color: "#556677",
+      x: -statusSize.width * 0.38,
+      y: -statusSize.height * 0.43,
+      z: STATUS_Z,
+      align: "left",
+    });
+
+    if (phase === "final" && decision) {
+      const t = Math.min(1, phaseTime / 1.1);
+      const eased = 1 - (1 - t) * (1 - t);
+      planet.set(finalLabel || decision, decision, eased, 0, 0, PLANET_Z);
+    }
   };
 
   renderer.on("resize", onResize);
@@ -192,10 +456,11 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
         scaleZ += (1 - scaleZ) * Math.min(1, dt * 2);
         fov += (60 - fov) * Math.min(1, dt * 2);
         roll *= 0.95;
+        followRate = 100;
         break;
       }
       case "spool": {
-        const t = Math.min(phaseTime / 1.4, 1);
+        const t = Math.min(phaseTime / SPOOL_DUR, 1);
         const eased = t * t;
         speed = eased * 8;
         scaleZ = 1 + eased * 3;
@@ -203,19 +468,19 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
         shake = eased * 0.08;
         roll = Math.sin(phaseTime * 6) * eased * 0.03;
         followRate = 0.5;
-        if (t >= 1) setPhase("punch");
+        if (phaseTime >= SPOOL_DUR) setPhase("punch");
         break;
       }
       case "punch": {
-        const t = Math.min(phaseTime / 1.1, 1);
-        const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+        const t = Math.min(phaseTime / PUNCH_DUR, 1);
+        const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
         speed = 8 + eased * 92;
         scaleZ = 4 + eased * 36;
         fov = 68 + eased * 42;
         shake = 0.08 + eased * 0.22;
         roll = eased * 0.04 + Math.sin(phaseTime * 8) * (1 - eased) * 0.04;
         followRate = 0.3;
-        if (t >= 1) setPhase("cruise");
+        if (phaseTime >= PUNCH_DUR) setPhase("cruise");
         break;
       }
       case "cruise": {
@@ -229,7 +494,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
         break;
       }
       case "tint": {
-        const t = Math.min(phaseTime / 1.2, 1);
+        const t = Math.min(phaseTime / TINT_DUR, 1);
         speed += (62 - speed) * Math.min(1, dt * 3);
         scaleZ += (34 - scaleZ) * Math.min(1, dt * 3);
         fov += (88 - fov) * Math.min(1, dt * 2);
@@ -237,18 +502,29 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
         followRate = 0.4;
         tint = hexRgb(decision === "No" ? hex.no : hex.yes);
         tintAmount = Math.sin(t * Math.PI);
-        if (t >= 1) setPhase("exit");
+        if (phaseTime >= TINT_DUR) setPhase("decel");
+        break;
+      }
+      case "decel": {
+        const t = Math.min(phaseTime / DECEL_DUR, 1);
+        const eased = 1 - (1 - t) * (1 - t);
+        speed = 80 * (1 - eased) + 4 * eased;
+        scaleZ = 40 * (1 - eased) + 4 * eased;
+        fov = 95 - eased * 30;
+        shake = 0.06 * (1 - eased);
+        roll *= 0.97;
+        followRate = 4;
+        if (phaseTime >= DECEL_DUR) setPhase("exit");
         break;
       }
       case "exit": {
-        const t = Math.min(phaseTime / 1.6, 1);
-        const eased = 1 - (1 - t) * (1 - t);
-        speed = 62 * (1 - eased) + 2 * eased;
-        scaleZ = 34 * (1 - eased) + 1 * eased;
+        const t = Math.min(phaseTime / EXIT_DUR, 1);
+        speed = 4 * (1 - t);
+        scaleZ = 4 * (1 - t) + 1 * t;
         fov += (60 - fov) * Math.min(1, dt * 2);
         roll *= 0.95;
         followRate = 8;
-        if (t >= 1) {
+        if (phaseTime >= EXIT_DUR) {
           cameraZ = 0;
           groupZ = 0;
           speed = 0;
@@ -283,26 +559,49 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
     camera.rotation.z = roll;
     camera.updateProjectionMatrix();
     camera.lookAt(camera.position.x * 0.3, camera.position.y * 0.3, cameraZ - 10);
+    hud.position.copy(camera.position);
+    hud.rotation.copy(camera.rotation);
+
+    const cursorNow = phase === "idle" && Math.floor(Date.now() / 480) % 2 === 0;
+    if (cursorNow !== lastCursor) questionText.key = "";
+    updateHud();
 
     await engine.drawScene(scene, renderer.nextRenderBuffer, deltaMs);
   });
 
   return {
+    setQuestion(nextQuestion) {
+      question = nextQuestion;
+      questionText.key = "";
+    },
+    setStatus(nextStatus) {
+      status = nextStatus;
+      statusText.key = "";
+    },
     startProcessing() {
       if (phase === "idle") setPhase("spool");
     },
-    resolveDecision(nextDecision: Decision) {
+    resolveDecision(nextDecision, label) {
       decision = nextDecision;
+      finalLabel = label || nextDecision;
       if (phase === "idle") setPhase("tint");
+      statusText.key = "";
     },
     reset() {
       decision = null;
+      finalLabel = "";
+      question = "";
+      status = "processing";
       cameraZ = 0;
       groupZ = 0;
       speed = 0;
       fov = 60;
       roll = 0;
       scaleZ = 1;
+      questionText.key = "";
+      statusText.key = "";
+      controlsText.key = "";
+      planet.key = "";
       setPhase("idle");
     },
     getPhase() {
@@ -312,6 +611,10 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
       renderer.off("resize", onResize);
       renderer.keyInput.off("keypress", onKey);
       renderer.clearFrameCallbacks();
+      questionText.dispose();
+      statusText.dispose();
+      controlsText.dispose();
+      planet.dispose();
       engine.destroy();
     },
   };
