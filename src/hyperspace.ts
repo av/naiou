@@ -40,6 +40,8 @@ const EXIT_DUR = 2.0;
 const HUD_Z = -10;
 const STATUS_Z = -8;
 const PLANET_Z = -12;
+const TEXT_CELL_FILL = 1.04;
+const PLANET_CELL_FILL = 1.02;
 
 interface Starfield extends ThreeGroup {
   baseLineColors: Float32Array;
@@ -107,15 +109,28 @@ function makeMaterial(color: string) {
 }
 
 function disposeGroup(group: ThreeGroup) {
+  const geometries = new Set<object>();
+  const materials = new Set<object>();
+
   for (const child of [...group.children]) {
     group.remove(child);
     if (child instanceof Mesh) {
-      child.geometry.dispose();
+      if (!geometries.has(child.geometry)) {
+        geometries.add(child.geometry);
+        child.geometry.dispose();
+      }
       if (Array.isArray(child.material)) {
-        for (const material of child.material) material.dispose();
-      } else {
+        for (const material of child.material) {
+          if (materials.has(material)) continue;
+          materials.add(material);
+          material.dispose();
+        }
+      } else if (!materials.has(child.material)) {
+        materials.add(child.material);
         child.material.dispose();
       }
+    } else if (child instanceof Group) {
+      disposeGroup(child);
     }
   }
 }
@@ -139,7 +154,7 @@ function createSceneText(parent: ThreeGroup): SceneText {
 
       const art = renderAsciiText(text, options.maxColumns, options.maxRows);
       const material = makeMaterial(options.color);
-      const geometry = new PlaneGeometry(options.cellSize * 0.82, options.cellSize * 0.82);
+      const geometry = new PlaneGeometry(options.cellSize * TEXT_CELL_FILL, options.cellSize * TEXT_CELL_FILL);
       const startX = options.align === "left" ? 0 : -((art.width - 1) * options.cellSize) / 2;
       const startY = ((art.height - 1) * options.cellSize) / 2;
 
@@ -149,7 +164,7 @@ function createSceneText(parent: ThreeGroup): SceneText {
         const line = art.lines[row]!;
         for (let col = 0; col < line.length; col++) {
           if (line[col] === " ") continue;
-          const mesh = new Mesh(geometry.clone(), material.clone());
+          const mesh = new Mesh(geometry, material);
           mesh.renderOrder = 1000;
           mesh.position.set(startX + col * options.cellSize, startY - row * options.cellSize, 0);
           group.add(mesh);
@@ -171,46 +186,88 @@ function createPlanet(parent: ThreeGroup): Planet {
       parent.remove(group);
     },
     set(label, decision, scale, x, y, z) {
-      const key = `${label}:${decision}:${scale.toFixed(2)}:${x.toFixed(2)}:${y.toFixed(2)}:${z.toFixed(2)}`;
+      group.position.set(x, y, z);
+      group.scale.setScalar(Math.max(0.05, scale));
+      const key = `${label}:${decision}:${x.toFixed(2)}:${y.toFixed(2)}:${z.toFixed(2)}`;
       if (key === this.key) return;
       this.key = key;
       disposeGroup(group);
-      group.position.set(x, y, z);
 
-      const radius = 1.4 * Math.max(0.05, scale);
-      const cell = Math.max(0.035, 0.11 * scale);
-      const tint = decision === "Yes" ? hex.yes : hex.no;
-      const shade = decision === "Yes" ? "#14532D" : "#7F1D1D";
-      const shadeChars = " .:-=+*#%@";
+      const rows = buildPlanetRows(decision);
+      const cell = 0.095;
+      const geometry = new PlaneGeometry(cell * PLANET_CELL_FILL, cell * PLANET_CELL_FILL);
+      const startX = -((rows[0]!.length - 1) * cell) / 2;
+      const startY = ((rows.length - 1) * cell) / 2;
+      const materials = planetMaterials(decision);
 
-      for (let row = -15; row <= 15; row++) {
-        for (let col = -30; col <= 30; col++) {
-          const px = (col / 30) * radius * 1.9;
-          const py = (row / 15) * radius;
-          const nx = px / 1.9;
-          const d = Math.sqrt(nx * nx + py * py);
-          if (d > radius) continue;
-
-          const highlight = Math.max(0, 1 - Math.sqrt((nx + radius * 0.35) ** 2 + (py + radius * 0.35) ** 2) / radius);
-          const limb = 1 - d / radius;
-          const brightness = Math.max(0, Math.min(1, limb * 0.75 + highlight * 0.55 + (px < 0 ? 0.08 : -0.08)));
-          const color = shadeChars[Math.floor(brightness * (shadeChars.length - 1))]! < "=" ? shade : tint;
-          const mesh = new Mesh(new PlaneGeometry(cell * 0.9, cell * 0.9), makeMaterial(color));
+      for (let row = 0; row < rows.length; row++) {
+        const line = rows[row]!;
+        for (let col = 0; col < line.length; col++) {
+          const shade = line[col]!;
+          if (shade === " ") continue;
+          const mesh = new Mesh(geometry, materials[shadeIndex(shade)]!);
           mesh.renderOrder = 1000;
-          mesh.position.set(px, py, 0);
+          mesh.position.set(startX + col * cell, startY - row * cell, 0);
           group.add(mesh);
         }
       }
 
-      const art = buildTextMeshes(renderAsciiText(label, 24, 7), 0.16 * scale, "#E5E7EB");
+      const art = buildTextMeshes(renderAsciiText(label, 24, 7), 0.16, "#E5E7EB");
       art.position.set(0, 0, 0.03);
       group.add(art);
     },
   };
 }
 
+function buildPlanetRows(decision: Decision): string[] {
+  const columns = 45;
+  const rows = 21;
+  const shades = " .:-=+*#%@";
+  const lines: string[] = [];
+  const lightX = -0.48;
+  const lightY = -0.58;
+  const lightZ = 0.66;
+
+  for (let row = 0; row < rows; row++) {
+    let line = "";
+    const y = (row - (rows - 1) / 2) / ((rows - 1) / 2);
+    for (let col = 0; col < columns; col++) {
+      const x = (col - (columns - 1) / 2) / ((columns - 1) / 2);
+      const d = x * x + y * y;
+      if (d > 1) {
+        line += " ";
+        continue;
+      }
+
+      const z = Math.sqrt(Math.max(0, 1 - d));
+      const diffuse = Math.max(0, x * lightX + y * lightY + z * lightZ);
+      const rim = Math.max(0, 1 - Math.sqrt(d));
+      const band = 0.08 * Math.sin((x * 7 + y * 2) * Math.PI);
+      const answerGlow = decision === "Yes" ? 0.05 : 0.02;
+      const brightness = Math.max(0, Math.min(1, diffuse * 0.72 + rim * 0.34 + band + answerGlow));
+      line += shades[Math.max(1, Math.min(shades.length - 1, Math.floor(brightness * (shades.length - 1))))]!;
+    }
+    lines.push(line);
+  }
+
+  return lines;
+}
+
+function shadeIndex(shade: string) {
+  return Math.max(0, " .:-=+*#%@".indexOf(shade));
+}
+
+function planetMaterials(decision: Decision) {
+  const yes = ["#062A1A", "#0B3F27", "#14532D", "#166534", "#15803D", "#22C55E", "#4ADE80", "#86EFAC", "#BBF7D0", "#F0FDF4"];
+  const no = ["#310B0B", "#450A0A", "#7F1D1D", "#991B1B", "#B91C1C", "#DC2626", "#EF4444", "#F87171", "#FCA5A5", "#FEF2F2"];
+
+  return (decision === "Yes" ? yes : no).map((color) => makeMaterial(color));
+}
+
 function buildTextMeshes(art: AsciiArt, cellSize: number, color: string): ThreeGroup {
   const group = new Group();
+  const geometry = new PlaneGeometry(cellSize * TEXT_CELL_FILL, cellSize * TEXT_CELL_FILL);
+  const material = makeMaterial(color);
   const startX = -((art.width - 1) * cellSize) / 2;
   const startY = ((art.height - 1) * cellSize) / 2;
 
@@ -218,7 +275,7 @@ function buildTextMeshes(art: AsciiArt, cellSize: number, color: string): ThreeG
     const line = art.lines[row]!;
     for (let col = 0; col < line.length; col++) {
       if (line[col] === " ") continue;
-      const mesh = new Mesh(new PlaneGeometry(cellSize * 0.82, cellSize * 0.82), makeMaterial(color));
+      const mesh = new Mesh(geometry, material);
       mesh.renderOrder = 1001;
       mesh.position.set(startX + col * cellSize, startY - row * cellSize, 0);
       group.add(mesh);
@@ -338,6 +395,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
   const hud = new Group();
   scene.add(hud);
   const questionText = createSceneText(hud);
+  const cursorText = createSceneText(hud);
   const statusText = createSceneText(hud);
   const controlsText = createSceneText(hud);
   const planet = createPlanet(hud);
@@ -356,6 +414,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
   let scaleZ = 1;
   let driftAngle = 0;
   let lastCursor = false;
+  let lastTintKey = "";
 
   const setPhase = (next: HyperspacePhase) => {
     phase = next;
@@ -367,6 +426,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
     camera.aspect = engine.aspectRatio;
     camera.updateProjectionMatrix();
     questionText.key = "";
+    cursorText.key = "";
     statusText.key = "";
     controlsText.key = "";
     planet.key = "";
@@ -382,26 +442,42 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
     const terminalH = Math.max(10, renderer.terminalHeight);
     const cursor = phase === "idle" && Math.floor(Date.now() / 480) % 2 === 0;
     const baseText = question || "ASK";
-    const displayQuestion = cursor ? `${baseText}_` : baseText;
     lastCursor = cursor;
 
     questionText.group.visible = phase !== "final";
+    cursorText.group.visible = phase === "idle" && cursor;
     statusText.group.visible = phase !== "idle";
     controlsText.group.visible = true;
     planet.group.visible = phase === "final";
 
     if (questionText.group.visible) {
-      const art = renderAsciiText(displayQuestion, Math.floor(terminalW * 0.7), Math.floor(terminalH * 0.7));
+      const maxColumns = Math.floor(terminalW * 0.7);
+      const maxRows = Math.floor(terminalH * 0.7);
+      const art = renderAsciiText(baseText, maxColumns, maxRows);
       const cellSize = Math.min((size.width * 0.7) / Math.max(1, art.width), (size.height * 0.55) / Math.max(1, art.height), 0.28);
-      questionText.set(displayQuestion, {
-        maxColumns: Math.floor(terminalW * 0.7),
-        maxRows: Math.floor(terminalH * 0.7),
+      questionText.set(baseText, {
+        maxColumns,
+        maxRows,
         cellSize,
         color: phase === "idle" ? "#E5E7EB" : "#9CA3AF",
         x: 0,
         y: 0,
         z: HUD_Z,
       });
+
+      if (cursorText.group.visible) {
+        const cursorX = ((art.width - 1) * cellSize) / 2 + cellSize * 1.25;
+        const cursorY = -((art.height - 1) * cellSize) / 2;
+        cursorText.set("_", {
+          maxColumns: 4,
+          maxRows: 5,
+          cellSize,
+          color: "#E5E7EB",
+          x: cursorX,
+          y: cursorY,
+          z: HUD_Z,
+        });
+      }
     }
 
     const statusSize = visibleSize(camera, Math.abs(STATUS_Z));
@@ -541,10 +617,14 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
       }
     }
 
-    mixColors(stars.lineColors.array as Float32Array, stars.baseLineColors, tint, tintAmount);
-    mixColors(stars.dotColors.array as Float32Array, stars.baseDotColors, tint, tintAmount);
-    stars.lineColors.needsUpdate = true;
-    stars.dotColors.needsUpdate = true;
+    const tintKey = tint ? `${tint.join(",")}:${tintAmount.toFixed(3)}` : "normal";
+    if (tintKey !== lastTintKey) {
+      lastTintKey = tintKey;
+      mixColors(stars.lineColors.array as Float32Array, stars.baseLineColors, tint, tintAmount);
+      mixColors(stars.dotColors.array as Float32Array, stars.baseDotColors, tint, tintAmount);
+      stars.lineColors.needsUpdate = true;
+      stars.dotColors.needsUpdate = true;
+    }
 
     cameraZ -= speed * dt;
     groupZ += (cameraZ - groupZ) * Math.min(1, dt * followRate);
@@ -563,7 +643,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
     hud.rotation.copy(camera.rotation);
 
     const cursorNow = phase === "idle" && Math.floor(Date.now() / 480) % 2 === 0;
-    if (cursorNow !== lastCursor) questionText.key = "";
+    if (cursorNow !== lastCursor) cursorText.key = "";
     updateHud();
 
     await engine.drawScene(scene, renderer.nextRenderBuffer, deltaMs);
@@ -598,7 +678,9 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
       fov = 60;
       roll = 0;
       scaleZ = 1;
+      lastTintKey = "";
       questionText.key = "";
+      cursorText.key = "";
       statusText.key = "";
       controlsText.key = "";
       planet.key = "";
@@ -612,6 +694,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
       renderer.keyInput.off("keypress", onKey);
       renderer.clearFrameCallbacks();
       questionText.dispose();
+      cursorText.dispose();
       statusText.dispose();
       controlsText.dispose();
       planet.dispose();

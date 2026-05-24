@@ -50,6 +50,15 @@
 - the final planet uses shaded ASCII characters and renders the answer text as ASCII art on the planet @implemented
 - the OpenTUI visual experience is rendered through the hyperspace ThreeCliRenderer scene rather than a separate BoxRenderable overlay @implemented
 - question letters, cursor, status text, final planet, and answer text are scene objects inside the hyperspace renderer @implemented
+- label: the TUI targets the original hyperspace scene budget of 30 fps rather than 60 fps
+  command: test -f src/app.ts && rg -q "targetFps: 30" src/app.ts
+  tags: [implemented]
+- label: ASCII scene text uses contiguous block cells without visible gaps between lit pixels
+  command: test -f src/hyperspace.ts && rg -q "TEXT_CELL_FILL = 1" src/hyperspace.ts && ! rg -q "cellSize \* 0\.82" src/hyperspace.ts
+  tags: [implemented]
+- label: the final planet is rendered as a compact shaded ASCII disc grid instead of thousands of per-frame planet meshes
+  command: test -f src/hyperspace.ts && rg -q "PLANET_CELL_FILL" src/hyperspace.ts && rg -q "buildPlanetRows" src/hyperspace.ts && ! rg -q "row = -15" src/hyperspace.ts
+  tags: [implemented]
 
 ## agent
 - label: the agent loads configuration from ${NAIOU_HOME:-~/.naiou}/config.json while preserving shell environment values as higher priority

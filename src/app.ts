@@ -9,7 +9,7 @@ export async function runApp(): Promise<void> {
   const renderer = await createCliRenderer({
     exitOnCtrlC: true,
     clearOnShutdown: true,
-    targetFps: 60,
+    targetFps: 30,
     backgroundColor: hex.background,
   });
   const hyperspace = await createHyperspace(renderer);
