@@ -50,20 +50,20 @@
 ## agent
 - label: the agent loads configuration from ${NAIOU_HOME:-~/.naiou}/config.json while preserving shell environment values as higher priority
   command: test -f src/agent.ts && rg -q "NAIOU_HOME|\\.naiou" src/agent.ts && rg -q "config.json" src/agent.ts && rg -q "process.env\[[^]]+\] \|\|=|process.env\.[A-Z0-9_]+ \|\|" src/agent.ts
-  tags: [spec]
-- the final agent decision exposed to the UI is exactly the string Yes or exactly the string No, with no extra text @spec
+  tags: [implemented]
+- the final agent decision exposed to the UI is exactly the string Yes or exactly the string No, with no extra text @implemented
 - label: the chat-completions request constrains finalization through structured output using response_format JSON schema or a dedicated final-answer tool
   command: test -f src/agent.ts && (rg -q "response_format" src/agent.ts || rg -q "final[_-]answer|finalAnswer" src/agent.ts)
-  tags: [spec]
+  tags: [implemented]
 - label: the agent loop hot-loads tools from tools/*.mjs and executes tool calls between streaming chat-completions turns before finalizing
   command: test -f src/agent.ts && rg -q "tools" src/agent.ts && rg -q "\\.mjs" src/agent.ts && rg -q "tool_calls" src/agent.ts
-  tags: [spec]
+  tags: [implemented]
 - label: the agent sends native fetch requests to an OpenAI-compatible /v1/chat/completions endpoint and supports streaming SSE response parsing
   command: test -f src/agent.ts && rg -q "fetch" src/agent.ts && rg -q "/v1/chat/completions" src/agent.ts && rg -q "stream" src/agent.ts && rg -q "data: |TextDecoder|SSE" src/agent.ts
-  tags: [spec]
+  tags: [implemented]
 - label: the default bundled tools are safe read/explore tools and do not provide broad file write, shell execution, deletion, or process-spawn capability
   command: test -d tools && ! rg -q "writeFile|appendFile|rmSync|unlink|spawn|exec|Bun\.spawn|fetch\(" tools
-  tags: [spec]
+  tags: [implemented]
 
 ## flow
 - launching naiou without a submitted question opens the full-screen OpenTUI app in a normal-space starfield input scene @spec
