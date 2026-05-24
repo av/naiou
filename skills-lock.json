@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "agent-integration-testing": {
+      "source": "av/skills",
+      "sourceType": "github",
+      "skillPath": "agent-integration-testing/SKILL.md",
+      "computedHash": "1c4770eb61d896674f47fc0e1819871cf540d77cef615f64751c81fef88b8b68"
+    },
+    "bugbash": {
+      "source": "av/skills",
+      "sourceType": "github",
+      "skillPath": "bugbash/SKILL.md",
+      "computedHash": "d68cfc7d3724f7a810c31e3fccff79e0205fb14fff4950bbcc9b3f83b3be6320"
+    }
+  }
+}
