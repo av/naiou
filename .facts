@@ -5,34 +5,34 @@
 # requirements
 
 ## user-constraints
-- project slug is naiou @spec
-- local project lives at /home/everlier/code/naiou @spec
+- project slug is naiou @spec @implemented
+- local project lives at /home/everlier/code/naiou @spec @implemented
 
 ## cli
 - label: package metadata exposes a naiou executable that launches src/main.ts and build scripts emit a naiou binary
   command: node -e "const p=require(\"./package.json\"); process.exit(p.name===\"naiou\" && p.type===\"module\" && p.bin?.naiou===\"src/main.ts\" && p.scripts?.start===\"bun run src/main.ts\" && p.scripts?.build===\"sh scripts/build.sh\" && /bun build --compile src\/main\.ts --outfile naiou/.test(p.scripts?.[\"build:ts\"]||\"\") ? 0 : 1)"
-  tags: [spec]
+  tags: [spec, implemented]
 - label: src/cli.ts uses util.parseArgs to parse --help, --version, and default interactive launch behavior
   command: test -f src/cli.ts && rg -q "parseArgs" src/cli.ts && rg -q "help" src/cli.ts && rg -q "version" src/cli.ts
-  tags: [spec]
+  tags: [spec, implemented]
 
 ## scaffold
-- the Bun TypeScript scaffold mirrors skilled package, tsconfig, build script, cli parseArgs, app root/input, and theme-token patterns without skilled dashboard logic @spec
+- the Bun TypeScript scaffold mirrors skilled package, tsconfig, build script, cli parseArgs, app root/input, and theme-token patterns without skilled dashboard logic @spec @implemented
 - label: the scaffold includes tsconfig.json configured for Bun-style TypeScript with ESNext target, preserved modules, bundler resolution, noEmit, strict, noUncheckedIndexedAccess, and noFallthroughCasesInSwitch
   command: test -f tsconfig.json && rg -q "ESNext" tsconfig.json && rg -q "moduleResolution.: .bundler|moduleResolution\": \"bundler" tsconfig.json && rg -q "noEmit" tsconfig.json && rg -q "strict" tsconfig.json && rg -q "noUncheckedIndexedAccess" tsconfig.json && rg -q "noFallthroughCasesInSwitch" tsconfig.json
-  tags: [spec]
+  tags: [spec, implemented]
 - label: scripts/build.sh compiles src/main.ts with bun build --compile and writes the executable to ./naiou
   command: test -f scripts/build.sh && rg -q "bun build --compile src/main.ts --outfile naiou" scripts/build.sh
-  tags: [spec]
+  tags: [spec, implemented]
 - label: src/app.ts owns the OpenTUI renderer lifecycle, root renderables, resize handling, and key input subscriptions
   command: test -f src/app.ts && rg -q "createCliRenderer" src/app.ts && rg -q "renderer.root" src/app.ts && rg -q "resize" src/app.ts && rg -q "keyInput" src/app.ts
   tags: [spec]
 - label: src/theme.ts centralizes reusable color tokens including muted grey, yes green, no red, star colors, and background color
   command: test -f src/theme.ts && rg -q "muted" src/theme.ts && rg -q "yes" src/theme.ts && rg -q "no" src/theme.ts && rg -q "star" src/theme.ts && rg -q "background|bg" src/theme.ts
-  tags: [spec]
+  tags: [spec, implemented]
 - label: the naiou scaffold does not include skilled provider modules, dashboard data modules, Rust index backend, npm wrapper, or pypi wrapper
   command: test ! -e src/providers && test ! -e src/data.ts && test ! -e src/models.ts && test ! -e index && test ! -e npm && test ! -e pypi
-  tags: [spec]
+  tags: [spec, implemented]
 
 ## visuals
 - label: the hyperspace renderer includes a createStarfield function adapted from opentui-candy using ThreeCliRenderer, Scene, PerspectiveCamera, and colored star streak geometry

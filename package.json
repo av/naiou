@@ -1,0 +1,27 @@
+{
+  "name": "naiou",
+  "version": "0.1.0",
+  "description": "OpenTUI yes/no oracle",
+  "module": "src/main.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "build": "sh scripts/build.sh",
+    "build:ts": "bun build --compile src/main.ts --outfile naiou"
+  },
+  "bin": {
+    "naiou": "src/main.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@opentui/core": "^0.2.15",
+    "@opentui/three": "^0.2.15",
+    "three": "^0.178.0"
+  }
+}
