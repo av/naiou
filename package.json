@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "start": "bun run src/main.ts",
+    "test": "bun test",
     "build": "sh scripts/build.sh",
     "build:ts": "bun build --compile src/main.ts --outfile naiou"
   },

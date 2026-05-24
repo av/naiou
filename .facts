@@ -80,6 +80,11 @@
 - the blinking cursor is rendered separately from the question text so it does not affect ASCII text sizing or centering @implemented
 - the final scene provides an Enter-to-ask-again path that resets the oracle to a fresh input scene @implemented
 
+## testing
+- label: integration tests document and execute facts, build, CLI, agent contract, safe tools, and TUI smoke coverage
+  command: test -f tests/integration.md && test -f tests/agent.test.ts && bun test tests/agent.test.ts
+  tags: [implemented]
+
 # domain
 - a question is the free-form user text displayed in the input scene before submission @implemented
 - a decision is the final oracle value and has exactly two valid values: Yes and No @implemented
