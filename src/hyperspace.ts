@@ -1,6 +1,6 @@
 import { ThreeCliRenderer, THREE } from "@opentui/three";
 import type * as ThreeCore from "three/src/Three.js";
-import { RGBA, type CliRenderer, type KeyEvent } from "@opentui/core";
+import { RGBA, TextRenderable, type CliRenderer, type KeyEvent } from "@opentui/core";
 import { renderAsciiText, type AsciiArt } from "./ascii.js";
 import { hex } from "./theme.js";
 
@@ -11,8 +11,10 @@ const {
   DoubleSide,
   Float32BufferAttribute,
   Group,
+  InstancedMesh,
   LineBasicMaterial,
   LineSegments,
+  Matrix4,
   Mesh,
   MeshBasicMaterial,
   PerspectiveCamera,
@@ -38,10 +40,14 @@ const TINT_DUR = 1.2;
 const DECEL_DUR = 2.5;
 const EXIT_DUR = 2.0;
 const HUD_Z = -10;
-const STATUS_Z = -8;
 const PLANET_Z = -12;
 const TEXT_CELL_FILL = 1.04;
 const PLANET_CELL_FILL = 1.02;
+const PLANET_COLUMNS = 45;
+const PLANET_ROWS = 21;
+const PLANET_CELL = 0.095;
+const PLANET_WORLD_WIDTH = PLANET_COLUMNS * PLANET_CELL;
+const PLANET_WORLD_HEIGHT = PLANET_ROWS * PLANET_CELL;
 
 interface Starfield extends ThreeGroup {
   baseLineColors: Float32Array;
@@ -155,21 +161,29 @@ function createSceneText(parent: ThreeGroup): SceneText {
       const art = renderAsciiText(text, options.maxColumns, options.maxRows);
       const material = makeMaterial(options.color);
       const geometry = new PlaneGeometry(options.cellSize * TEXT_CELL_FILL, options.cellSize * TEXT_CELL_FILL);
+      const instanceCount = countLitCells(art);
+      const mesh = new InstancedMesh(geometry, material, Math.max(1, instanceCount));
+      const matrix = new Matrix4();
       const startX = options.align === "left" ? 0 : -((art.width - 1) * options.cellSize) / 2;
       const startY = ((art.height - 1) * options.cellSize) / 2;
+      let instance = 0;
 
       group.position.set(options.x, options.y, options.z);
+      mesh.renderOrder = 1000;
 
       for (let row = 0; row < art.lines.length; row++) {
         const line = art.lines[row]!;
         for (let col = 0; col < line.length; col++) {
           if (line[col] === " ") continue;
-          const mesh = new Mesh(geometry, material);
-          mesh.renderOrder = 1000;
-          mesh.position.set(startX + col * options.cellSize, startY - row * options.cellSize, 0);
-          group.add(mesh);
+          matrix.makeTranslation(startX + col * options.cellSize, startY - row * options.cellSize, 0);
+          mesh.setMatrixAt(instance, matrix);
+          instance += 1;
         }
       }
+
+      mesh.count = instance;
+      mesh.instanceMatrix.needsUpdate = true;
+      group.add(mesh);
     },
   };
 }
@@ -194,22 +208,34 @@ function createPlanet(parent: ThreeGroup): Planet {
       disposeGroup(group);
 
       const rows = buildPlanetRows(decision);
-      const cell = 0.095;
-      const geometry = new PlaneGeometry(cell * PLANET_CELL_FILL, cell * PLANET_CELL_FILL);
-      const startX = -((rows[0]!.length - 1) * cell) / 2;
-      const startY = ((rows.length - 1) * cell) / 2;
+      const geometry = new PlaneGeometry(PLANET_CELL * PLANET_CELL_FILL, PLANET_CELL * PLANET_CELL_FILL);
+      const startX = -((rows[0]!.length - 1) * PLANET_CELL) / 2;
+      const startY = ((rows.length - 1) * PLANET_CELL) / 2;
       const materials = planetMaterials(decision);
+      const positionsByShade = Array.from({ length: materials.length }, () => [] as Array<[number, number]>);
 
       for (let row = 0; row < rows.length; row++) {
         const line = rows[row]!;
         for (let col = 0; col < line.length; col++) {
           const shade = line[col]!;
           if (shade === " ") continue;
-          const mesh = new Mesh(geometry, materials[shadeIndex(shade)]!);
-          mesh.renderOrder = 1000;
-          mesh.position.set(startX + col * cell, startY - row * cell, 0);
-          group.add(mesh);
+          positionsByShade[shadeIndex(shade)]!.push([startX + col * PLANET_CELL, startY - row * PLANET_CELL]);
         }
+      }
+
+      const matrix = new Matrix4();
+      for (let shade = 0; shade < positionsByShade.length; shade++) {
+        const positions = positionsByShade[shade]!;
+        if (!positions.length) continue;
+        const mesh = new InstancedMesh(geometry, materials[shade]!, positions.length);
+        mesh.renderOrder = 1000;
+        for (let i = 0; i < positions.length; i++) {
+          const [px, py] = positions[i]!;
+          matrix.makeTranslation(px, py, 0);
+          mesh.setMatrixAt(i, matrix);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        group.add(mesh);
       }
 
       const art = buildTextMeshes(renderAsciiText(label, 24, 7), 0.16, "#E5E7EB");
@@ -220,19 +246,17 @@ function createPlanet(parent: ThreeGroup): Planet {
 }
 
 function buildPlanetRows(decision: Decision): string[] {
-  const columns = 45;
-  const rows = 21;
   const shades = " .:-=+*#%@";
   const lines: string[] = [];
   const lightX = -0.48;
   const lightY = -0.58;
   const lightZ = 0.66;
 
-  for (let row = 0; row < rows; row++) {
+  for (let row = 0; row < PLANET_ROWS; row++) {
     let line = "";
-    const y = (row - (rows - 1) / 2) / ((rows - 1) / 2);
-    for (let col = 0; col < columns; col++) {
-      const x = (col - (columns - 1) / 2) / ((columns - 1) / 2);
+    const y = (row - (PLANET_ROWS - 1) / 2) / ((PLANET_ROWS - 1) / 2);
+    for (let col = 0; col < PLANET_COLUMNS; col++) {
+      const x = (col - (PLANET_COLUMNS - 1) / 2) / ((PLANET_COLUMNS - 1) / 2);
       const d = x * x + y * y;
       if (d > 1) {
         line += " ";
@@ -268,21 +292,46 @@ function buildTextMeshes(art: AsciiArt, cellSize: number, color: string): ThreeG
   const group = new Group();
   const geometry = new PlaneGeometry(cellSize * TEXT_CELL_FILL, cellSize * TEXT_CELL_FILL);
   const material = makeMaterial(color);
+  const mesh = new InstancedMesh(geometry, material, Math.max(1, countLitCells(art)));
+  const matrix = new Matrix4();
   const startX = -((art.width - 1) * cellSize) / 2;
   const startY = ((art.height - 1) * cellSize) / 2;
+  let instance = 0;
 
   for (let row = 0; row < art.lines.length; row++) {
     const line = art.lines[row]!;
     for (let col = 0; col < line.length; col++) {
       if (line[col] === " ") continue;
-      const mesh = new Mesh(geometry, material);
-      mesh.renderOrder = 1001;
-      mesh.position.set(startX + col * cellSize, startY - row * cellSize, 0);
-      group.add(mesh);
+      matrix.makeTranslation(startX + col * cellSize, startY - row * cellSize, 0);
+      mesh.setMatrixAt(instance, matrix);
+      instance += 1;
     }
   }
 
+  mesh.count = instance;
+  mesh.renderOrder = 1001;
+  mesh.instanceMatrix.needsUpdate = true;
+  group.add(mesh);
+
   return group;
+}
+
+function countLitCells(art: AsciiArt) {
+  let count = 0;
+
+  for (const line of art.lines) {
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] !== " ") count += 1;
+    }
+  }
+
+  return count;
+}
+
+function planetScaleForViewport(camera: ThreePerspectiveCamera) {
+  const size = visibleSize(camera, Math.abs(PLANET_Z));
+
+  return Math.min((size.width * 0.8) / PLANET_WORLD_WIDTH, (size.height * 0.8) / PLANET_WORLD_HEIGHT);
 }
 
 export function createStarfield(): Starfield {
@@ -396,9 +445,27 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
   scene.add(hud);
   const questionText = createSceneText(hud);
   const cursorText = createSceneText(hud);
-  const statusText = createSceneText(hud);
-  const controlsText = createSceneText(hud);
   const planet = createPlanet(hud);
+  const statusLine = new TextRenderable(renderer, {
+    id: "naiou-status",
+    content: "",
+    fg: "#6B7280",
+    position: "absolute",
+    top: 0,
+    left: 1,
+    zIndex: 30,
+  });
+  const controlsLine = new TextRenderable(renderer, {
+    id: "naiou-controls",
+    content: " ENTER TO ASK  ESC TO QUIT ",
+    fg: "#556677",
+    position: "absolute",
+    top: Math.max(0, renderer.terminalHeight - 1),
+    left: 1,
+    zIndex: 30,
+  });
+  renderer.root.add(statusLine);
+  renderer.root.add(controlsLine);
 
   let phase: HyperspacePhase = "idle";
   let decision: Decision | null = null;
@@ -425,10 +492,9 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
     engine.setSize(Math.max(1, w), Math.max(1, h));
     camera.aspect = engine.aspectRatio;
     camera.updateProjectionMatrix();
+    controlsLine.y = Math.max(0, h - 1);
     questionText.key = "";
     cursorText.key = "";
-    statusText.key = "";
-    controlsText.key = "";
     planet.key = "";
   };
 
@@ -446,9 +512,9 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
 
     questionText.group.visible = phase !== "final";
     cursorText.group.visible = phase === "idle" && cursor;
-    statusText.group.visible = phase !== "idle";
-    controlsText.group.visible = true;
     planet.group.visible = phase === "final";
+    statusLine.content = phase === "idle" ? "" : ` ${status} `;
+    controlsLine.content = phase === "final" ? " ENTER TO ASK AGAIN  ESC TO QUIT " : " ENTER TO ASK  ESC TO QUIT ";
 
     if (questionText.group.visible) {
       const maxColumns = Math.floor(terminalW * 0.7);
@@ -480,36 +546,10 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
       }
     }
 
-    const statusSize = visibleSize(camera, Math.abs(STATUS_Z));
-    if (statusText.group.visible) {
-      statusText.set(status, {
-        maxColumns: Math.floor(terminalW * 0.8),
-        maxRows: 5,
-        cellSize: Math.min(0.055, (statusSize.width * 0.75) / Math.max(1, status.length * 4)),
-        color: "#6B7280",
-        x: -statusSize.width * 0.38,
-        y: statusSize.height * 0.43,
-        z: STATUS_Z,
-        align: "left",
-      });
-    }
-
-    const prompt = phase === "final" ? "ENTER TO ASK AGAIN  ESC TO QUIT" : "ENTER TO ASK  ESC TO QUIT";
-    controlsText.set(prompt, {
-      maxColumns: Math.floor(terminalW * 0.8),
-      maxRows: 5,
-      cellSize: Math.min(0.05, (statusSize.width * 0.75) / Math.max(1, prompt.length * 4)),
-      color: "#556677",
-      x: -statusSize.width * 0.38,
-      y: -statusSize.height * 0.43,
-      z: STATUS_Z,
-      align: "left",
-    });
-
     if (phase === "final" && decision) {
       const t = Math.min(1, phaseTime / 1.1);
       const eased = 1 - (1 - t) * (1 - t);
-      planet.set(finalLabel || decision, decision, eased, 0, 0, PLANET_Z);
+      planet.set(finalLabel || decision, decision, eased * planetScaleForViewport(camera), 0, 0, PLANET_Z);
     }
   };
 
@@ -656,7 +696,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
     },
     setStatus(nextStatus) {
       status = nextStatus;
-      statusText.key = "";
+      statusLine.content = phase === "idle" ? "" : ` ${status} `;
     },
     startProcessing() {
       if (phase === "idle") setPhase("spool");
@@ -665,7 +705,7 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
       decision = nextDecision;
       finalLabel = label || nextDecision;
       if (phase === "idle") setPhase("tint");
-      statusText.key = "";
+      statusLine.content = ` ${status} `;
     },
     reset() {
       decision = null;
@@ -681,8 +721,6 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
       lastTintKey = "";
       questionText.key = "";
       cursorText.key = "";
-      statusText.key = "";
-      controlsText.key = "";
       planet.key = "";
       setPhase("idle");
     },
@@ -693,10 +731,10 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
       renderer.off("resize", onResize);
       renderer.keyInput.off("keypress", onKey);
       renderer.clearFrameCallbacks();
+      renderer.root.remove("naiou-status");
+      renderer.root.remove("naiou-controls");
       questionText.dispose();
       cursorText.dispose();
-      statusText.dispose();
-      controlsText.dispose();
       planet.dispose();
       engine.destroy();
     },

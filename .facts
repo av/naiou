@@ -59,6 +59,15 @@
 - label: the final planet is rendered as a compact shaded ASCII disc grid instead of thousands of per-frame planet meshes
   command: test -f src/hyperspace.ts && rg -q "PLANET_CELL_FILL" src/hyperspace.ts && rg -q "buildPlanetRows" src/hyperspace.ts && ! rg -q "row = -15" src/hyperspace.ts
   tags: [implemented]
+- label: hyperspace-phase ASCII and planet cells are batched with InstancedMesh instead of per-cell Mesh objects
+  command: test -f src/hyperspace.ts && rg -q "InstancedMesh" src/hyperspace.ts && rg -q "setMatrixAt" src/hyperspace.ts && ! rg -q "const mesh = new Mesh\(geometry, material\)" src/hyperspace.ts
+  tags: [implemented]
+- label: the final planet scales against the visible viewport aspect and reaches roughly 80 percent of the available view
+  command: test -f src/hyperspace.ts && rg -q "planetScaleForViewport" src/hyperspace.ts && rg -q "0\.8" src/hyperspace.ts && rg -q "visibleSize\(camera" src/hyperspace.ts
+  tags: [implemented]
+- label: top and bottom captions are normal OpenTUI TextRenderable text rather than ASCII scene text
+  command: test -f src/hyperspace.ts && rg -q "TextRenderable" src/hyperspace.ts && rg -q "renderer.root.add" src/hyperspace.ts && ! rg -q "controlsText|statusText = createSceneText" src/hyperspace.ts
+  tags: [implemented]
 
 ## agent
 - label: the agent loads configuration from ${NAIOU_HOME:-~/.naiou}/config.json while preserving shell environment values as higher priority
