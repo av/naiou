@@ -5,47 +5,47 @@
 # requirements
 
 ## user-constraints
-- project slug is naiou @spec @implemented
-- local project lives at /home/everlier/code/naiou @spec @implemented
+- project slug is naiou @implemented
+- local project lives at /home/everlier/code/naiou @implemented
 
 ## cli
 - label: package metadata exposes a naiou executable that launches src/main.ts and build scripts emit a naiou binary
   command: node -e "const p=require(\"./package.json\"); process.exit(p.name===\"naiou\" && p.type===\"module\" && p.bin?.naiou===\"src/main.ts\" && p.scripts?.start===\"bun run src/main.ts\" && p.scripts?.build===\"sh scripts/build.sh\" && /bun build --compile src\/main\.ts --outfile naiou/.test(p.scripts?.[\"build:ts\"]||\"\") ? 0 : 1)"
-  tags: [spec, implemented]
+  tags: [implemented]
 - label: src/cli.ts uses util.parseArgs to parse --help, --version, and default interactive launch behavior
   command: test -f src/cli.ts && rg -q "parseArgs" src/cli.ts && rg -q "help" src/cli.ts && rg -q "version" src/cli.ts
-  tags: [spec, implemented]
+  tags: [implemented]
 
 ## scaffold
-- the Bun TypeScript scaffold mirrors skilled package, tsconfig, build script, cli parseArgs, app root/input, and theme-token patterns without skilled dashboard logic @spec @implemented
+- the Bun TypeScript scaffold mirrors skilled package, tsconfig, build script, cli parseArgs, app root/input, and theme-token patterns without skilled dashboard logic @implemented
 - label: the scaffold includes tsconfig.json configured for Bun-style TypeScript with ESNext target, preserved modules, bundler resolution, noEmit, strict, noUncheckedIndexedAccess, and noFallthroughCasesInSwitch
   command: test -f tsconfig.json && rg -q "ESNext" tsconfig.json && rg -q "moduleResolution.: .bundler|moduleResolution\": \"bundler" tsconfig.json && rg -q "noEmit" tsconfig.json && rg -q "strict" tsconfig.json && rg -q "noUncheckedIndexedAccess" tsconfig.json && rg -q "noFallthroughCasesInSwitch" tsconfig.json
-  tags: [spec, implemented]
+  tags: [implemented]
 - label: scripts/build.sh compiles src/main.ts with bun build --compile and writes the executable to ./naiou
   command: test -f scripts/build.sh && rg -q "bun build --compile src/main.ts --outfile naiou" scripts/build.sh
-  tags: [spec, implemented]
+  tags: [implemented]
 - label: src/app.ts owns the OpenTUI renderer lifecycle, root renderables, resize handling, and key input subscriptions
   command: test -f src/app.ts && rg -q "createCliRenderer" src/app.ts && rg -q "renderer.root" src/app.ts && rg -q "resize" src/app.ts && rg -q "keyInput" src/app.ts
-  tags: [spec, implemented]
+  tags: [implemented]
 - label: src/theme.ts centralizes reusable color tokens including muted grey, yes green, no red, star colors, and background color
   command: test -f src/theme.ts && rg -q "muted" src/theme.ts && rg -q "yes" src/theme.ts && rg -q "no" src/theme.ts && rg -q "star" src/theme.ts && rg -q "background|bg" src/theme.ts
-  tags: [spec, implemented]
+  tags: [implemented]
 - label: the naiou scaffold does not include skilled provider modules, dashboard data modules, Rust index backend, npm wrapper, or pypi wrapper
   command: test ! -e src/providers && test ! -e src/data.ts && test ! -e src/models.ts && test ! -e index && test ! -e npm && test ! -e pypi
-  tags: [spec, implemented]
+  tags: [implemented]
 
 ## visuals
 - label: the hyperspace renderer includes a createStarfield function adapted from opentui-candy using ThreeCliRenderer, Scene, PerspectiveCamera, and colored star streak geometry
   command: test -f src/hyperspace.ts && rg -q "function createStarfield|const createStarfield" src/hyperspace.ts && rg -q "ThreeCliRenderer" src/hyperspace.ts && rg -q "PerspectiveCamera" src/hyperspace.ts && rg -q "LineSegments|Points" src/hyperspace.ts
-  tags: [spec, implemented]
-- when the agent resolves a decision, the hyperspace tunnel tints green for Yes and red for No before transitioning to the final scene @spec @implemented
-- after the decision tint, the final scene returns stars to normal colors and animates a shaded circular planet scaling into view with the decision text centered on it @spec @implemented
+  tags: [implemented]
+- when the agent resolves a decision, the hyperspace tunnel tints green for Yes and red for No before transitioning to the final scene @implemented
+- after the decision tint, the final scene returns stars to normal colors and animates a shaded circular planet scaling into view with the decision text centered on it @implemented
 - label: the hyperspace renderer updates camera aspect and renderer size on terminal resize
   command: test -f src/hyperspace.ts && rg -q "setSize" src/hyperspace.ts && rg -q "updateProjectionMatrix" src/hyperspace.ts
-  tags: [spec, implemented]
+  tags: [implemented]
 - label: the hyperspace renderer uses a frame callback loop and exposes cleanup that removes input and resize listeners and releases render resources
   command: test -f src/hyperspace.ts && rg -q "setFrameCallback" src/hyperspace.ts && rg -q "cleanup" src/hyperspace.ts
-  tags: [spec, implemented]
+  tags: [implemented]
 
 ## agent
 - label: the agent loads configuration from ${NAIOU_HOME:-~/.naiou}/config.json while preserving shell environment values as higher priority
@@ -66,17 +66,17 @@
   tags: [implemented]
 
 ## flow
-- launching naiou without a submitted question opens the full-screen OpenTUI app in a normal-space starfield input scene @spec @implemented
-- typed question text is rendered as large centered ASCII art constrained to roughly the central 70 percent of terminal width and height @spec @implemented
-- the input scene renders a blinking large ASCII cursor at the current question insertion point @spec @implemented
-- pressing Enter in the input scene freezes the question, starts the agent loop, and transitions the starfield into hyperspace cruise until the agent resolves @spec @implemented
-- while the agent is processing, a one-line muted grey status appears at the top edge without disrupting the centered question or hyperspace view @spec @implemented
+- launching naiou without a submitted question opens the full-screen OpenTUI app in a normal-space starfield input scene @implemented
+- typed question text is rendered as large centered ASCII art constrained to roughly the central 70 percent of terminal width and height @implemented
+- the input scene renders a blinking large ASCII cursor at the current question insertion point @implemented
+- pressing Enter in the input scene freezes the question, starts the agent loop, and transitions the starfield into hyperspace cruise until the agent resolves @implemented
+- while the agent is processing, a one-line muted grey status appears at the top edge without disrupting the centered question or hyperspace view @implemented
 - label: the hyperspace phase machine uses Enter-submitted processing state instead of a Space key trigger to start motion
   command: test -f src/app.ts && rg -q "enter|return" src/app.ts && ! rg -q "Space: Engage Hyperdrive|key.name === .space.|name === .space." src/app.ts
-  tags: [spec, implemented]
+  tags: [implemented]
 
 # domain
-- a question is the free-form user text displayed in the input scene before submission @spec @implemented
-- a decision is the final oracle value and has exactly two valid values: Yes and No @spec @implemented
-- processing is the interval after Enter submission and before the agent resolves a decision @spec @implemented
-- hyperspace is the animated processing visualization that cruises while processing and transitions after a decision @spec @implemented
+- a question is the free-form user text displayed in the input scene before submission @implemented
+- a decision is the final oracle value and has exactly two valid values: Yes and No @implemented
+- processing is the interval after Enter submission and before the agent resolves a decision @implemented
+- hyperspace is the animated processing visualization that cruises while processing and transitions after a decision @implemented
