@@ -1,0 +1,33 @@
+# project
+
+- project is set up and ready for development
+
+# requirements
+
+## user-constraints
+- project slug is naiou @spec
+- local project lives at /home/everlier/code/naiou @spec
+
+## cli
+- the app launches from a naiou command @draft
+
+## scaffold
+- the app uses OpenTUI infrastructure and scaffold patterns from /home/everlier/code/skilled without copying skilled app logic or screens @draft
+
+## visuals
+- the app adapts the hyperspace effect from /home/everlier/code/opentui-candy @draft
+- the hyperspace tunnel turns green for Yes and red for No when the decision is ready @draft
+- the final scene exits hyperspace into normal star colors and scales a shaded planet into view with Yes or No written on it @draft
+
+## agent
+- the app adapts the agentic loop and configuration patterns from /home/everlier/code/mi @draft
+- the agent replies with exactly Yes or No @draft
+- the agent uses structured outputs to narrow the final decision @draft
+- the agent has tools and may explore before finalizing a decision @draft
+
+## flow
+- launching naiou initially shows a space scene @draft
+- typed questions render as large centered ASCII characters occupying roughly the central 70 percent of the terminal @draft
+- the input view includes a blinking large ASCII cursor @draft
+- pressing Enter starts the agent loop and hyperspace animation @draft
+- a tiny greyed-out status line appears at the top during agent processing @draft
