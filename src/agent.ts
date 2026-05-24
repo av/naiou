@@ -4,6 +4,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { homedir } from "node:os";
 
 export type OracleDecision = "Yes" | "No";
+export type OracleResult =
+  | { type: "decision"; decision: OracleDecision }
+  | { type: "refusal"; message: string };
 
 type ChatMessage = {
   role: "system" | "user" | "assistant" | "tool";
@@ -36,11 +39,13 @@ type AgentOptions = {
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const defaultSystemPrompt =
   "You are naiou, a yes/no oracle agent. Explore only when needed. " +
-  "When ready, answer through the required JSON schema with decision exactly Yes or No.";
+  "First decide whether the user's request is answerable as a yes/no question. " +
+  "If it is, answer through the required JSON schema with decision exactly Yes or No. " +
+  "If it is not, set kind to refusal, decision to No, and refusal to a short message asking for a yes/no question.";
 
 let toolLoadId = 0;
 
-export async function askOracle(question: string, options: AgentOptions = {}): Promise<OracleDecision> {
+export async function askOracle(question: string, options: AgentOptions = {}): Promise<OracleResult> {
   const trimmed = question.trim();
 
   if (!trimmed) {
@@ -67,7 +72,7 @@ export async function askOracle(question: string, options: AgentOptions = {}): P
     messages.push(assistant);
 
     if (!assistant.tool_calls?.length) {
-      return parseDecision(assistant.content);
+      return parseResult(assistant.content);
     }
 
     for (const toolCall of assistant.tool_calls) {
@@ -179,9 +184,11 @@ async function streamChatCompletion(
             type: "object",
             additionalProperties: false,
             properties: {
+              kind: { type: "string", enum: ["decision", "refusal"] },
               decision: { type: "string", enum: ["Yes", "No"] },
+              refusal: { type: "string" },
             },
-            required: ["decision"],
+            required: ["kind", "decision", "refusal"],
           },
         },
       },
@@ -292,24 +299,34 @@ function readSseEvent(event: string, message: ChatMessage): void {
   }
 }
 
-function parseDecision(content: string): OracleDecision {
+function parseResult(content: string): OracleResult {
   const text = content.trim();
 
   if (text === "Yes" || text === "No") {
-    return text;
+    return { type: "decision", decision: text };
   }
 
   try {
-    const parsed = JSON.parse(text) as { decision?: unknown };
+    const parsed = JSON.parse(text) as { kind?: unknown; decision?: unknown; refusal?: unknown; message?: unknown };
+
+    if (
+      parsed.kind === "refusal" ||
+      (parsed.kind !== "decision" && (typeof parsed.refusal === "string" || typeof parsed.message === "string"))
+    ) {
+      return {
+        type: "refusal",
+        message: String(parsed.refusal || parsed.message || "Ask a yes/no question."),
+      };
+    }
 
     if (parsed.decision === "Yes" || parsed.decision === "No") {
-      return parsed.decision;
+      return { type: "decision", decision: parsed.decision };
     }
   } catch {
-    throw new Error(`invalid final decision: ${text}`);
+    throw new Error(`invalid final oracle result: ${text}`);
   }
 
-  throw new Error(`invalid final decision: ${text}`);
+  throw new Error(`invalid final oracle result: ${text}`);
 }
 
 function parseToolArgs(raw: string): Record<string, unknown> {

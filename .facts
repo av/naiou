@@ -46,12 +46,14 @@
 - label: the hyperspace renderer uses a frame callback loop and exposes cleanup that removes input and resize listeners and releases render resources
   command: test -f src/hyperspace.ts && rg -q "setFrameCallback" src/hyperspace.ts && rg -q "cleanup" src/hyperspace.ts
   tags: [implemented]
+- the normal-space and hyperspace scenes draw visible stars or streaks directly in the OpenTUI buffer even when the Three renderer is unavailable or occluded @implemented
+- the final planet uses shaded ASCII characters and renders the answer text as ASCII art on the planet @implemented
 
 ## agent
 - label: the agent loads configuration from ${NAIOU_HOME:-~/.naiou}/config.json while preserving shell environment values as higher priority
   command: test -f src/agent.ts && rg -q "NAIOU_HOME|\\.naiou" src/agent.ts && rg -q "config.json" src/agent.ts && rg -q "process.env\[[^]]+\] \|\|=|process.env\.[A-Z0-9_]+ \|\|" src/agent.ts
   tags: [implemented]
-- the final agent decision exposed to the UI is exactly the string Yes or exactly the string No, with no extra text @implemented
+- accepted yes/no questions resolve to exactly the string Yes or exactly the string No, with no extra text @implemented
 - label: the chat-completions request constrains finalization through structured output using response_format JSON schema or a dedicated final-answer tool
   command: test -f src/agent.ts && (rg -q "response_format" src/agent.ts || rg -q "final[_-]answer|finalAnswer" src/agent.ts)
   tags: [implemented]
@@ -64,6 +66,7 @@
 - label: the default bundled tools are safe read/explore tools and do not provide broad file write, shell execution, deletion, or process-spawn capability
   command: test -d tools && ! rg -q "writeFile|appendFile|rmSync|unlink|spawn|exec|Bun\.spawn|fetch\(" tools
   tags: [implemented]
+- non-yes/no questions are refused by the same LLM-backed oracle instead of being forced into Yes or No @implemented
 
 ## flow
 - launching naiou without a submitted question opens the full-screen OpenTUI app in a normal-space starfield input scene @implemented
@@ -74,6 +77,8 @@
 - label: the hyperspace phase machine uses Enter-submitted processing state instead of a Space key trigger to start motion
   command: test -f src/app.ts && rg -q "enter|return" src/app.ts && ! rg -q "Space: Engage Hyperdrive|key.name === .space.|name === .space." src/app.ts
   tags: [implemented]
+- the blinking cursor is rendered separately from the question text so it does not affect ASCII text sizing or centering @implemented
+- the final scene provides an Enter-to-ask-again path that resets the oracle to a fresh input scene @implemented
 
 # domain
 - a question is the free-form user text displayed in the input scene before submission @implemented

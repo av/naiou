@@ -123,6 +123,7 @@ export function createStarfield(): Starfield {
 export interface HyperspaceController {
   startProcessing(): void;
   resolveDecision(decision: Decision): void;
+  reset(): void;
   getPhase(): HyperspacePhase;
   cleanup(): void;
 }
@@ -293,6 +294,16 @@ export async function createHyperspace(renderer: CliRenderer): Promise<Hyperspac
     resolveDecision(nextDecision: Decision) {
       decision = nextDecision;
       if (phase === "idle") setPhase("tint");
+    },
+    reset() {
+      decision = null;
+      cameraZ = 0;
+      groupZ = 0;
+      speed = 0;
+      fov = 60;
+      roll = 0;
+      scaleZ = 1;
+      setPhase("idle");
     },
     getPhase() {
       return phase;
