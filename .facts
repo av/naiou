@@ -149,3 +149,28 @@
 - after gh repo create, the local origin remote is configured to git@github.com:av/naiou.git and the full commit history plus v0.2.0 tag are pushed @spec @ci @implemented
 - pushing the v0.2.0 tag to the newly provisioned av/naiou repository triggers the Release GitHub Actions workflow and creates the first public GitHub Release with platform binaries @spec @ci @implemented
 - gh CLI is authenticated as the av account with repo scope and is used to create and manage the av/naiou repository @spec @ci @implemented
+
+# cli
+
+## init
+- running naiou (default TUI launch) prints a helpful error to stderr and exits non-zero without starting any renderer if OPENAI_API_KEY is absent from both the environment and ~/.naiou/config.json @spec @implemented
+- the missing backend error message explains how to configure OPENAI_API_KEY (via env var or ~/.naiou/config.json), mentions optional OPENAI_BASE_URL and MODEL, and gives actionable guidance without referencing any TUI elements @spec @implemented
+- naiou --help and naiou --version succeed and produce output without requiring OPENAI_API_KEY or any config file @spec @implemented
+
+## debug
+- naiou --debug (or -d) enables display of the agent's reasoning (from the final structured JSON) and raw response at the top of the TUI via the debug line; this is off by default @spec @implemented
+- without --debug, the TUI never populates the top debug line with agent reasoning, decision text, or raw LLM output after a decision (only status messages and the final Yes/No planet are shown) @spec @implemented
+- the debug flag from the CLI is threaded to the askOracle call (so raw content is included) and gates the setDebug calls in app.ts finish/reset paths @spec @implemented
+
+# installation
+- label: the README displays the three initial phase screenshots (question input, deciding hyperspace, final decision) side-by-side in one row at the top using 32% width HTML img tags
+  command: grep -q 'img src="./assets/question.png" width="32%"' README.md && grep -q 'deciding.png" width="32%"' README.md && grep -q 'decision.png" width="32%"' README.md
+  tags: [implemented]
+
+# assets
+- the three screenshot assets in ./assets are WebP format (question.webp, deciding.webp, decision.webp) converted at high quality (minimal perceptible loss) from the original high-resolution captures for significantly smaller file sizes @implemented
+- assets are converted to WebP using ImageMagick at quality 92; this replaces the previous PNG + optipng approach and yields ~5-7x smaller files while preserving visual fidelity for the README hero images @implemented
+- README displays the three WebP assets side-by-side at the top using the same HTML img row as before; the oxg fact (or equivalent) continues to hold because the images serve the same purpose @implemented
+
+# release
+- version 0.3.0 prepared by bumping package.json, src/cli.ts, and tests/integration.md; includes WebP asset conversion for the README hero images plus fact sheet updates @draft

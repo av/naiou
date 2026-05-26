@@ -59,7 +59,7 @@ export async function askOracle(question: string, options: AgentOptions = {}): P
   loadConfig();
 
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is required");
+    throw new Error("OpenAI-compatible backend is not configured (OPENAI_API_KEY missing)");
   }
 
   const messages: ChatMessage[] = [
@@ -125,6 +125,33 @@ export async function askOracle(question: string, options: AgentOptions = {}): P
 }
 
 export const runAgent = askOracle;
+
+const MISSING_BACKEND_MESSAGE = `OpenAI-compatible backend is not configured.
+
+naiou requires an OPENAI_API_KEY.
+
+Provide it using one of:
+
+  • Environment variable:
+      export OPENAI_API_KEY=sk-...
+
+  • Config file at ~/.naiou/config.json (or $NAIOU_HOME/config.json):
+      {
+        "OPENAI_API_KEY": "sk-...",
+        "OPENAI_BASE_URL": "https://api.openai.com",  // optional
+        "MODEL": "gpt-5.4"                            // optional
+      }
+
+After setting one of the above, run 'naiou' again.
+`;
+
+export function ensureOpenAIConfigured(): void {
+  loadConfig();
+  if (!process.env.OPENAI_API_KEY) {
+    console.error(MISSING_BACKEND_MESSAGE);
+    process.exit(1);
+  }
+}
 
 function loadConfig(): void {
   const configHome = process.env.NAIOU_HOME || `${homedir()}/.naiou`;

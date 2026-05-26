@@ -1,6 +1,6 @@
 {
   "name": "naiou",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "OpenTUI yes/no oracle",
   "module": "src/main.ts",
   "type": "module",

@@ -5,7 +5,7 @@ import { hex } from "./theme.js";
 
 type AppMode = "input" | "processing" | "final";
 
-export async function runApp(): Promise<void> {
+export async function runApp(debug = false): Promise<void> {
   const renderer = await createCliRenderer({
     exitOnCtrlC: true,
     clearOnShutdown: true,
@@ -52,7 +52,9 @@ export async function runApp(): Promise<void> {
     const decision: Decision = result.decision;
     const label = decision;
 
-    hyperspace.setDebug(result.reasoning || result.raw || "");
+    if (debug) {
+      hyperspace.setDebug(result.reasoning || result.raw || "");
+    }
     hyperspace.resolveDecision(decision, label);
     waitForFinal();
   };
@@ -64,6 +66,7 @@ export async function runApp(): Promise<void> {
     hyperspace.setStatus("processing");
     hyperspace.startProcessing();
     void askOracle(question, {
+      debug,
       status(message) {
         hyperspace.setStatus(message);
         if (message === "deciding") hyperspace.startDeciding();

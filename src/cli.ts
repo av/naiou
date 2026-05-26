@@ -1,6 +1,6 @@
 import { parseArgs } from "util";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 const HELP = `naiou - OpenTUI yes/no oracle
 
@@ -9,16 +9,19 @@ Usage: naiou [options]
 Options:
   -h, --help       Show this help
   -v, --version    Show version
+  -d, --debug      Show agent reasoning and raw response at the top (debug mode)
 
 Examples:
-  naiou            Launch the oracle`;
+  naiou            Launch the oracle
+  naiou --debug    Launch with full agent trace visible`;
 
 export interface CliResult {
   command: "tui" | "help" | "version";
+  debug?: boolean;
 }
 
 export function parseCli(argv: string[]): CliResult {
-  let values: { help?: boolean; version?: boolean };
+  let values: { help?: boolean; version?: boolean; debug?: boolean };
   let positionals: string[];
 
   try {
@@ -27,6 +30,7 @@ export function parseCli(argv: string[]): CliResult {
       options: {
         help: { type: "boolean", short: "h", default: false },
         version: { type: "boolean", short: "v", default: false },
+        debug: { type: "boolean", short: "d", default: false },
       },
       allowPositionals: true,
       strict: true,
@@ -45,7 +49,7 @@ export function parseCli(argv: string[]): CliResult {
     process.exit(1);
   }
 
-  return { command: "tui" };
+  return { command: "tui", debug: values.debug };
 }
 
 export function runCli(cli: CliResult): void {

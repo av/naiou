@@ -1,4 +1,5 @@
-# naiou
+<p align="center"><img src="./assets/question.webp" width="32%" alt="splash" /> <img src="./assets/deciding.webp" width="32%" alt="deciding" /> <img src="./assets/decision.webp" width="32%" alt="decision" /></p>
+
 
 OpenTUI yes/no oracle with 3D hyperspace visualization.
 
