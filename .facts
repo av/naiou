@@ -107,6 +107,13 @@
   command: test -f tests/integration.md && test -f tests/agent.test.ts && bun test tests/agent.test.ts
   tags: [implemented]
 
+## installation
+- users can install prebuilt naiou binaries using a one-line command: curl -fsSL https://raw.githubusercontent.com/av/naiou/main/install.sh | sh @spec @implemented
+- install.sh detects the user's OS and architecture, downloads the matching artifact (e.g. naiou-linux-amd64.tar.gz) from the latest GitHub release, and installs the naiou binary to a user-writable location in PATH @spec @implemented
+- install.sh supports Linux (amd64/arm64) and macOS (arm64); Intel Macs and Windows users are directed to build from source or use alternative methods @spec @implemented
+- the README prominently documents the install.sh method as the recommended way to get naiou, with a fallback to building from source for unsupported platforms @spec @implemented
+- prebuilt binaries are the officially supported distribution method; building from source with Bun is documented for development and unsupported platforms @spec @implemented
+
 # domain
 - a question is the free-form user text displayed in the input scene before submission @implemented
 - a decision is the final oracle value and has exactly two valid values: Yes and No @implemented
