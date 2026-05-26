@@ -4,9 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { homedir } from "node:os";
 
 export type OracleDecision = "Yes" | "No";
-export type OracleResult =
-  | { type: "decision"; decision: OracleDecision }
-  | { type: "refusal"; message: string };
+export type OracleResult = { type: "decision"; decision: OracleDecision; raw?: string; reasoning?: string };
 
 type ChatMessage = {
   role: "system" | "user" | "assistant" | "tool";
@@ -34,14 +32,20 @@ type ToolCall = {
 type AgentOptions = {
   signal?: AbortSignal;
   status?: (message: string) => void;
+  debug?: boolean;
 };
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const defaultSystemPrompt =
-  "You are naiou, a yes/no oracle agent. Explore only when needed. " +
-  "First decide whether the user's request is answerable as a yes/no question. " +
-  "If it is, answer through the required JSON schema with decision exactly Yes or No. " +
-  "If it is not, set kind to refusal, decision to No, and refusal to a short message asking for a yes/no question.";
+  "You are naiou, a wise and deeply researched yes/no oracle. " +
+  "Your job is to help the user by giving the best possible Yes or No answer. " +
+  "For simple questions you can answer from general knowledge (e.g. 'Is the sky blue?', 'Is 2+2=5?'), respond immediately without using tools. " +
+  "Only use tools when the question requires inspecting the workspace, checking files, or looking up project-specific facts. " +
+  "Think step by step in your responses. Explain your analysis, trade-offs, and why this is the most helpful answer. " +
+  "Be bold: commit to one answer rather than hedging. " +
+  "Everything the user sends gets a Yes or No answer — no exceptions. " +
+  "If the input is not a real yes/no question, pick based on vibes: positive/friendly sentiment → Yes, negative/hostile sentiment → No, neutral/random → coin flip.";
+
 
 let toolLoadId = 0;
 
@@ -61,25 +65,27 @@ export async function askOracle(question: string, options: AgentOptions = {}): P
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: `${process.env.SYSTEM_PROMPT || defaultSystemPrompt}\nCWD: ${process.cwd()}`,
+      content: `${process.env.SYSTEM_PROMPT || defaultSystemPrompt}\nCWD: ${process.cwd()}\nTime: ${new Date().toISOString()}`,
     },
     { role: "user", content: trimmed },
   ];
 
+  // Turn 1: free-form reasoning and tool exploration (no output constraints, tools enabled)
   for (let turn = 0; turn < maxTurns(); turn += 1) {
     const { tools, schemas } = await loadTools();
+    options.status?.(turn === 0 ? "thinking" : `researching (${turn + 1})`);
     const assistant = await streamChatCompletion(messages, schemas, options.signal);
     messages.push(assistant);
 
     if (!assistant.tool_calls?.length) {
-      return parseResult(assistant.content);
+      break;
     }
 
     for (const toolCall of assistant.tool_calls) {
       const tool = tools[toolCall.function.name];
       const args = parseToolArgs(toolCall.function.arguments);
 
-      options.status?.(`exploring with ${toolCall.function.name}`);
+      options.status?.(describeToolCall(toolCall.function.name, args));
 
       if (!tool) {
         messages.push({
@@ -107,7 +113,15 @@ export async function askOracle(question: string, options: AgentOptions = {}): P
     }
   }
 
-  throw new Error("agent did not reach a Yes/No decision before the turn limit");
+  // Turn 2: constrained final answer (no tools, JSON schema forces structured output)
+  options.status?.("deciding");
+  const assistant = await streamChatCompletion(messages, [], options.signal, true);
+  messages.push(assistant);
+  const result = parseResult(assistant.content);
+  if (options.debug) {
+    return { ...result, raw: assistant.content };
+  }
+  return result;
 }
 
 export const runAgent = askOracle;
@@ -161,6 +175,7 @@ async function streamChatCompletion(
   messages: ChatMessage[],
   tools: Array<Record<string, unknown>>,
   signal?: AbortSignal,
+  constrained = false,
 ): Promise<ChatMessage> {
   const response = await fetch(chatCompletionsUrl(), {
     method: "POST",
@@ -172,26 +187,27 @@ async function streamChatCompletion(
     body: JSON.stringify({
       model: process.env.MODEL || "gpt-5.4",
       messages,
-      tools,
+      tools: tools.length > 0 ? tools : undefined,
       stream: true,
       ...(process.env.NAIOU_API_PARAMS ? JSON.parse(process.env.NAIOU_API_PARAMS) : {}),
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "naiou_decision",
-          strict: true,
-          schema: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              kind: { type: "string", enum: ["decision", "refusal"] },
-              decision: { type: "string", enum: ["Yes", "No"] },
-              refusal: { type: "string" },
+      ...(constrained ? {
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "naiou_decision",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                reasoning: { type: "string" },
+                decision: { type: "string", enum: ["Yes", "No"] },
+              },
+              required: ["reasoning", "decision"],
             },
-            required: ["kind", "decision", "refusal"],
           },
         },
-      },
+      } : {}),
       ...(process.env.REASONING_EFFORT ? { reasoning_effort: process.env.REASONING_EFFORT } : {}),
     }),
   });
@@ -307,26 +323,37 @@ function parseResult(content: string): OracleResult {
   }
 
   try {
-    const parsed = JSON.parse(text) as { kind?: unknown; decision?: unknown; refusal?: unknown; message?: unknown };
-
-    if (
-      parsed.kind === "refusal" ||
-      (parsed.kind !== "decision" && (typeof parsed.refusal === "string" || typeof parsed.message === "string"))
-    ) {
-      return {
-        type: "refusal",
-        message: String(parsed.refusal || parsed.message || "Ask a yes/no question."),
-      };
-    }
+    const parsed = JSON.parse(text) as { kind?: unknown; decision?: unknown; reasoning?: unknown };
 
     if (parsed.decision === "Yes" || parsed.decision === "No") {
-      return { type: "decision", decision: parsed.decision };
+      return { type: "decision", decision: parsed.decision, reasoning: String(parsed.reasoning || "") };
     }
   } catch {
-    throw new Error(`invalid final oracle result: ${text}`);
+    const match = text.match(/\b(Yes|No)\b/);
+    if (match) {
+      return { type: "decision", decision: match[1] as OracleDecision };
+    }
   }
 
   throw new Error(`invalid final oracle result: ${text}`);
+}
+
+function describeToolCall(name: string, args: Record<string, unknown>): string {
+  switch (name) {
+    case "list_files":
+      return `listing ${args.path || "."}`;
+    case "read_file":
+      return `reading ${args.path || "?"}`;
+    case "search_files":
+      return `searching "${args.query || ""}"`;
+    case "run_command": {
+      const cmd = String(args.command || "");
+      const cmdArgs = Array.isArray(args.args) ? args.args.map(String) : [];
+      return `running ${[cmd, ...cmdArgs].join(" ")}`;
+    }
+    default:
+      return name;
+  }
 }
 
 function parseToolArgs(raw: string): Record<string, unknown> {
