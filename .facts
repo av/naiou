@@ -127,10 +127,10 @@
 ## release
 - pushing a v* tag to the repository triggers the Release GitHub Actions workflow for cross-platform builds and publishing @spec @ci @implemented
 - the Release workflow builds naiou binaries for four platforms using a matrix: linux-amd64 (ubuntu-latest), linux-arm64 (ubuntu-24.04-arm), darwin-arm64 (macos-latest), windows-amd64 (windows-latest) @spec @ci @implemented
-- each build job sets up Bun via oven-sh/setup-bun, installs dependencies with bun install, and compiles the executable using bun build --compile src/main.ts --outfile naiou @spec @ci @implemented
+- each build job sets up Bun via the pinned commit of oven-sh/setup-bun (v2.1.3), installs dependencies with bun install, and compiles the executable using bun build --compile src/main.ts --outfile naiou @spec @ci @implemented
 - build jobs package the naiou binary into platform artifacts: .tar.gz for Unix (containing naiou), .zip for Windows (containing naiou.exe); no Rust indexer is included since naiou has none @spec @ci @implemented
-- artifacts are uploaded via actions/upload-artifact@v4 with names like naiou-linux-amd64 etc. @spec @ci @implemented
-- a release job runs after all builds, downloads all artifacts, and creates a GitHub Release using softprops/action-gh-release@v2 that includes the .tar.gz and .zip files plus generated release notes @spec @ci @implemented
+- artifacts are uploaded via the pinned commit of actions/upload-artifact (v4) with names like naiou-linux-amd64 etc. @spec @ci @implemented
+- a release job runs after all builds, downloads all artifacts, and creates a GitHub Release using the pinned commit of softprops/action-gh-release (v2) that includes the .tar.gz and .zip files plus generated release notes @spec @ci @implemented
 - the workflow has no publish-npm or publish-pypi jobs; naiou intentionally omits npm and PyPI wrapper packages (per scaffold facts) @spec @ci @implemented
 - the Release workflow requests contents: write permission at the top level for creating releases and uploading artifacts @spec @ci @implemented
 - the workflow file lives at .github/workflows/release.yml and is the only workflow @spec @ci @implemented
@@ -149,6 +149,11 @@
 - after gh repo create, the local origin remote is configured to git@github.com:av/naiou.git and the full commit history plus v0.2.0 tag are pushed @spec @ci @implemented
 - pushing the v0.2.0 tag to the newly provisioned av/naiou repository triggers the Release GitHub Actions workflow and creates the first public GitHub Release with platform binaries @spec @ci @implemented
 - gh CLI is authenticated as the av account with repo scope and is used to create and manage the av/naiou repository @spec @ci @implemented
+- the Release workflow pins all third-party actions (checkout, setup-bun, upload-artifact, download-artifact, action-gh-release) to specific immutable 40-char commit SHAs with version comments instead of floating major-version tags; this eliminates transient codeload.github.com archive download failures (as observed for the v0.3.1 release) @spec @ci @implemented
+- actions/checkout is used at the pinned SHA 11bd71901bbe5b1630ceea73d27597364c9af683 (v4.2.2) in both build and release jobs @spec @ci @implemented
+- oven-sh/setup-bun is pinned to SHA ecf28ddc73e819eb6fa29df6b34ef8921c743461 (v2.1.3) to avoid the codeload failure that hit the v2.2.0 commit during the v0.3.1 release run @spec @ci @implemented
+- actions/upload-artifact is pinned to SHA ea165f8d65b6e75b540449e92b4886f43607fa02 (v4) and actions/download-artifact to d3f86a106a0bac45b974a628896c90dbdf5c8093 (v4) @spec @ci @implemented
+- softprops/action-gh-release is pinned to SHA 3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 (v2.6.2) in the release job @spec @ci @implemented
 
 # cli
 
@@ -176,3 +181,4 @@
 
 # release
 - version 0.3.0 prepared by bumping package.json, src/cli.ts, and tests/integration.md; includes WebP asset conversion for the README hero images plus fact sheet updates @draft
+- version 0.3.2 prepared to deliver the GitHub Release workflow fix: all actions pinned to immutable SHAs (avoiding the v0.3.1 codeload transient failure on oven-sh/setup-bun@v2); version bumped in the three canonical places, changes committed, and v0.3.2 tag pushed to trigger the corrected cross-platform build + GitHub Release @spec @ci

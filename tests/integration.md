@@ -30,7 +30,7 @@ Steps:
 
 Expectations:
 - Help output includes `naiou - OpenTUI yes/no oracle`.
-- Version output is `0.3.1`.
+- Version output is `0.3.2`.
 - Compiled binary help exits 0.
 
 ## Test 3: Agent Contract
