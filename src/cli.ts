@@ -3,7 +3,7 @@ import { parseArgs } from "util";
 import { ensureOpenAIConfigured } from "./agent.js";
 import { runApp } from "./app.js";
 
-const VERSION = "0.3.2";
+const VERSION = "0.3.3";
 
 const HELP = `naiou - OpenTUI yes/no oracle
 
