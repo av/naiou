@@ -130,6 +130,11 @@
 - the project version is defined in two places that must be kept in sync: package.json and src/cli.ts (const VERSION) @spec @ci @implemented
 - tests/integration.md contains a test that asserts the CLI --version output matches the current version string @spec @ci @implemented
 - to prepare a release the version is bumped in package.json, src/cli.ts, and the expected value in tests/integration.md before tagging @spec @ci @implemented
-- the first release after adding the GitHub release workflow is v0.2.0; it is performed locally by bumping version to 0.2.0 (package.json + src/cli.ts + tests), committing, and creating/pushing the v0.2.0 tag (remote must be configured to git@github.com:av/naiou.git or equivalent after the repo exists on GitHub) @spec @ci @implemented
-- when no git remote named origin exists, the correct remote (git@github.com:av/naiou.git) is added before attempting push and tag push; push will only succeed after the GitHub repository has been created @spec @ci @implemented
+- the first release after adding the GitHub release workflow is v0.2.0; the version was bumped, changes committed, the public repo av/naiou was provisioned with gh repo create, and the v0.2.0 tag was pushed to trigger the Release workflow @spec @ci @implemented
+- the correct remote (git@github.com:av/naiou.git) was added (via gh repo create) before pushing the v0.2.0 release tag @spec @ci @implemented
 - after the v0.2.0 tag is pushed, the Release workflow runs on GitHub and attaches naiou-*-* artifacts to the new GitHub Release @spec @ci @implemented
+- the canonical public GitHub repository for the project is https://github.com/av/naiou @spec @ci @implemented
+- the public GitHub repository av/naiou is provisioned using the gh CLI with gh repo create @spec @ci @implemented
+- after gh repo create, the local origin remote is configured to git@github.com:av/naiou.git and the full commit history plus v0.2.0 tag are pushed @spec @ci @implemented
+- pushing the v0.2.0 tag to the newly provisioned av/naiou repository triggers the Release GitHub Actions workflow and creates the first public GitHub Release with platform binaries @spec @ci @implemented
+- gh CLI is authenticated as the av account with repo scope and is used to create and manage the av/naiou repository @spec @ci @implemented
