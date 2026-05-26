@@ -18,7 +18,9 @@ This downloads the latest prebuilt binary for your platform from GitHub Releases
 - Linux (amd64, arm64)
 - macOS (arm64 / Apple Silicon)
 
-**Unsupported platforms** (Windows, Intel Macs): download a binary directly from the [GitHub Releases](https://github.com/av/naiou/releases) page or build from source.
+**Other platforms** (Windows, Intel Macs): Prebuilt binaries are provided in GitHub Releases.
+- Windows: `naiou-windows-amd64.zip`
+- Intel Mac: build from source (see Development section)
 
 After installation, run `naiou` and enter your OpenAI-compatible API key when prompted (or set `OPENAI_API_KEY`).
 

@@ -16,10 +16,14 @@ detect_platform() {
     Linux)  platform="linux" ;;
     Darwin) platform="darwin" ;;
     MINGW*|MSYS*|CYGWIN*)
-      echo "Error: Windows detected. Prebuilt binaries for Windows are available from GitHub releases." >&2
-      echo "  https://github.com/${REPO}/releases" >&2
+      echo "Windows detected." >&2
       echo "" >&2
-      echo "Alternatively, build from source:" >&2
+      echo "Prebuilt Windows binaries are available:" >&2
+      echo "  https://github.com/${REPO}/releases/latest/download/naiou-windows-amd64.zip" >&2
+      echo "" >&2
+      echo "Download, unzip, and run naiou.exe." >&2
+      echo "" >&2
+      echo "Alternatively, build from source (requires Bun):" >&2
       echo "  git clone https://github.com/${REPO} && cd naiou && bun run build" >&2
       exit 1
       ;;
