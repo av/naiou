@@ -127,9 +127,9 @@
 - the only official mechanism for producing and publishing prebuilt naiou binaries for all supported platforms is pushing a v* tag, which executes .github/workflows/release.yml @spec @ci @implemented
 - AGENTS.md documents the release process (how to trigger the workflow, what platforms are supported, and where artifacts appear) immediately after the core fact-driven development instructions @spec @ci @implemented
 - prebuilt release artifacts use the naming convention naiou-{linux-amd64,linux-arm64,darwin-arm64,windows-amd64}.{tar.gz,zip} and are attached to the GitHub Release for the tag @spec @ci @implemented
-- the project version is defined in two places that must be kept in sync: package.json and src/cli.ts (const VERSION) @spec @ci
-- tests/integration.md contains a test that asserts the CLI --version output matches the current version string @spec @ci
-- to prepare a release the version is bumped in package.json, src/cli.ts, and the expected value in tests/integration.md before tagging @spec @ci
-- the first release after adding the GitHub release workflow is v0.2.0; it is performed by bumping version, committing, pushing the commit, then creating and pushing the v0.2.0 tag @spec @ci
-- when no git remote named origin exists, one is added (pointing to the canonical GitHub repository) before push and tag push @spec @ci
-- after the v0.2.0 tag is pushed, the Release workflow runs on GitHub and attaches naiou-*-* artifacts to the new GitHub Release @spec @ci
+- the project version is defined in two places that must be kept in sync: package.json and src/cli.ts (const VERSION) @spec @ci @implemented
+- tests/integration.md contains a test that asserts the CLI --version output matches the current version string @spec @ci @implemented
+- to prepare a release the version is bumped in package.json, src/cli.ts, and the expected value in tests/integration.md before tagging @spec @ci @implemented
+- the first release after adding the GitHub release workflow is v0.2.0; it is performed locally by bumping version to 0.2.0 (package.json + src/cli.ts + tests), committing, and creating/pushing the v0.2.0 tag (remote must be configured to git@github.com:av/naiou.git or equivalent after the repo exists on GitHub) @spec @ci @implemented
+- when no git remote named origin exists, the correct remote (git@github.com:av/naiou.git) is added before attempting push and tag push; push will only succeed after the GitHub repository has been created @spec @ci @implemented
+- after the v0.2.0 tag is pushed, the Release workflow runs on GitHub and attaches naiou-*-* artifacts to the new GitHub Release @spec @ci @implemented
