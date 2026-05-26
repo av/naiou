@@ -1,5 +1,8 @@
 import { parseArgs } from "util";
 
+import { ensureOpenAIConfigured } from "./agent.js";
+import { runApp } from "./app.js";
+
 const VERSION = "0.3.0";
 
 const HELP = `naiou - OpenTUI yes/no oracle
@@ -52,7 +55,7 @@ export function parseCli(argv: string[]): CliResult {
   return { command: "tui", debug: values.debug };
 }
 
-export function runCli(cli: CliResult): void {
+export async function runCli(cli: CliResult): Promise<void> {
   switch (cli.command) {
     case "help":
       console.log(HELP);
@@ -61,6 +64,8 @@ export function runCli(cli: CliResult): void {
       console.log(VERSION);
       return;
     case "tui":
+      ensureOpenAIConfigured();
+      await runApp(cli.debug);
       return;
   }
 }

@@ -156,6 +156,7 @@
 - running naiou (default TUI launch) prints a helpful error to stderr and exits non-zero without starting any renderer if OPENAI_API_KEY is absent from both the environment and ~/.naiou/config.json @spec @implemented
 - the missing backend error message explains how to configure OPENAI_API_KEY (via env var or ~/.naiou/config.json), mentions optional OPENAI_BASE_URL and MODEL, and gives actionable guidance without referencing any TUI elements @spec @implemented
 - naiou --help and naiou --version succeed and produce output without requiring OPENAI_API_KEY or any config file @spec @implemented
+- the CLI module (cli.ts) is responsible for early-exiting with non-zero status and the missing backend error on stderr (without invoking app or renderer) when launching the tui command and no OPENAI_API_KEY is present in env or config; help/version commands never perform or require credential checks @spec @implemented
 
 ## debug
 - naiou --debug (or -d) enables display of the agent's reasoning (from the final structured JSON) and raw response at the top of the TUI via the debug line; this is off by default @spec @implemented
