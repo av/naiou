@@ -110,3 +110,16 @@
 - a decision is the final oracle value and has exactly two valid values: Yes and No @implemented
 - processing is the interval after Enter submission and before the agent resolves a decision @implemented
 - hyperspace is the animated processing visualization that cruises while processing and transitions after a decision @implemented
+
+# ci
+
+## release
+- pushing a v* tag to the repository triggers the Release GitHub Actions workflow for cross-platform builds and publishing @spec @ci @implemented
+- the Release workflow builds naiou binaries for four platforms using a matrix: linux-amd64 (ubuntu-latest), linux-arm64 (ubuntu-24.04-arm), darwin-arm64 (macos-latest), windows-amd64 (windows-latest) @spec @ci @implemented
+- each build job sets up Bun via oven-sh/setup-bun, installs dependencies with bun install, and compiles the executable using bun build --compile src/main.ts --outfile naiou @spec @ci @implemented
+- build jobs package the naiou binary into platform artifacts: .tar.gz for Unix (containing naiou), .zip for Windows (containing naiou.exe); no Rust indexer is included since naiou has none @spec @ci @implemented
+- artifacts are uploaded via actions/upload-artifact@v4 with names like naiou-linux-amd64 etc. @spec @ci @implemented
+- a release job runs after all builds, downloads all artifacts, and creates a GitHub Release using softprops/action-gh-release@v2 that includes the .tar.gz and .zip files plus generated release notes @spec @ci @implemented
+- the workflow has no publish-npm or publish-pypi jobs; naiou intentionally omits npm and PyPI wrapper packages (per scaffold facts) @spec @ci @implemented
+- the Release workflow requests contents: write permission at the top level for creating releases and uploading artifacts @spec @ci @implemented
+- the workflow file lives at .github/workflows/release.yml and is the only workflow @spec @ci @implemented
