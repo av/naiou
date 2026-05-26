@@ -24,3 +24,25 @@ Step 4 only works if step 2 happened. If you skipped step 2, go back now — you
 - `facts-discover` — scan the codebase and sync facts to reality (only when explicitly asked)
 - `facts-implement` — implement `@spec` facts in code, verify, tag `@implemented`
 <!-- facts:end -->
+
+## Release Workflow
+
+Releases are driven exclusively by GitHub Actions in `.github/workflows/release.yml`:
+
+- Cut a release by creating and pushing a `v*` tag:
+  ```sh
+  git tag v0.2.0
+  git push origin v0.2.0
+  ```
+- The workflow builds native binaries for four platforms using the same matrix as the original skilled project (minus the Rust indexer):
+  - `linux-amd64` (ubuntu-latest)
+  - `linux-arm64` (ubuntu-24.04-arm)
+  - `darwin-arm64` (macos-latest)
+  - `windows-amd64` (windows-latest)
+- Each job produces a single compressed artifact:
+  - `naiou-linux-amd64.tar.gz`, `naiou-linux-arm64.tar.gz`, `naiou-darwin-arm64.tar.gz`
+  - `naiou-windows-amd64.zip` (contains `naiou.exe`)
+- A GitHub Release is created automatically (with generated notes) and the artifacts are attached.
+- There are no npm or PyPI publish steps.
+
+See the facts under `# ci > release` (IDs 9lk, fd9, 386, owi, 67p, 6h6, t66, lh0, azk, 98o, jla, kaq, rne) for the precise specification. The workflow file itself is the implementation.
