@@ -108,7 +108,7 @@
   tags: [implemented]
 
 ## installation
-- users can install prebuilt naiou binaries using a one-line command: curl -fsSL https://raw.githubusercontent.com/av/naiou/main/install.sh | sh @spec @implemented
+- users can install prebuilt naiou binaries using a one-line command: curl -fsSL https://raw.githubusercontent.com/av/naiou/refs/heads/master/install.sh | sh @spec @implemented
 - install.sh detects the user's OS and architecture, downloads the matching artifact (e.g. naiou-linux-amd64.tar.gz) from the latest GitHub release, and installs the naiou binary to a user-writable location in PATH @spec @implemented
 - install.sh supports Linux (amd64/arm64) and macOS arm64 natively; Windows and Intel Mac users receive clear guidance with direct links to the appropriate .zip/.tar.gz artifacts on GitHub Releases @spec @implemented
 - the README prominently documents the install.sh method as the recommended way to get naiou, with a fallback to building from source for unsupported platforms @spec @implemented

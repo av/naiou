@@ -10,7 +10,7 @@ Every question receives a definitive **Yes** or **No** — no refusals, no hedgi
 The recommended way to install naiou is with the install script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/av/naiou/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/av/naiou/refs/heads/master/install.sh | sh
 ```
 
 This downloads the latest prebuilt binary for your platform from GitHub Releases and installs it to a location in your PATH (`/usr/local/bin` or `~/.local/bin`).
