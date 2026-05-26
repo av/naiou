@@ -1,6 +1,8 @@
 # project
 
 - project is set up and ready for development
+- TODO.md has been removed; it contained early development notes that are now obsolete or superseded by the fact sheet @spec @implemented
+- all items that were once tracked in TODO.md have either been implemented (and often significantly improved) or explicitly superseded by decisions captured in .facts (e.g. always-answer Yes/No behavior) @spec @implemented
 
 # requirements
 
