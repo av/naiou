@@ -35,28 +35,13 @@ describe("oracle agent", () => {
       expect(headers.get("authorization")).toBe("Bearer env-key");
       expect(body.model).toBe("env-model");
 
-      return streamResponse({ kind: "decision", decision: "Yes", refusal: "" });
+      return streamResponse({ kind: "decision", reasoning: "This is a yes/no question.", decision: "Yes" });
     }) as unknown as typeof fetch;
 
     const result = await askOracle("Is this a yes/no question?");
 
-    expect(result).toEqual({ type: "decision", decision: "Yes" });
+    expect(result).toEqual({ type: "decision", decision: "Yes", reasoning: "This is a yes/no question." });
     rmSync(home, { recursive: true, force: true });
-  });
-
-  test("refuses non-yes-no questions through the same structured response path", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
-    process.env.OPENAI_BASE_URL = "https://example.test";
-
-    globalThis.fetch = (async () => streamResponse({
-      kind: "refusal",
-      decision: "No",
-      refusal: "Ask a yes/no question.",
-    })) as unknown as typeof fetch;
-
-    const result = await askOracle("Tell me a story.");
-
-    expect(result).toEqual({ type: "refusal", message: "Ask a yes/no question." });
   });
 
   test("bundled file tools reject traversal outside the workspace", async () => {

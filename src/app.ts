@@ -34,6 +34,7 @@ export async function runApp(): Promise<void> {
     finalPoll = null;
     question = "";
     mode = "input";
+    hyperspace.setDebug("");
     hyperspace.reset();
     syncQuestion();
   };
@@ -48,13 +49,10 @@ export async function runApp(): Promise<void> {
   };
 
   const finish = (result: OracleResult) => {
-    const decision: Decision = result.type === "decision" ? result.decision : "No";
-    const label = result.type === "decision" ? result.decision : "YES/NO?";
+    const decision: Decision = result.decision;
+    const label = decision;
 
-    if (result.type === "refusal") {
-      hyperspace.setStatus(result.message);
-    }
-
+    hyperspace.setDebug(result.reasoning || result.raw || "");
     hyperspace.resolveDecision(decision, label);
     waitForFinal();
   };
@@ -62,11 +60,13 @@ export async function runApp(): Promise<void> {
   const submit = () => {
     if (mode !== "input" || question.trim().length === 0) return;
     mode = "processing";
+    hyperspace.setDebug("");
     hyperspace.setStatus("processing");
     hyperspace.startProcessing();
     void askOracle(question, {
       status(message) {
         hyperspace.setStatus(message);
+        if (message === "deciding") hyperspace.startDeciding();
       },
     })
       .then(finish)

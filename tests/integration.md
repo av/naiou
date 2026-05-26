@@ -41,7 +41,6 @@ Steps:
 Expectations:
 - Shell environment values override values from `${NAIOU_HOME}/config.json`.
 - A mocked accepted yes/no response resolves to `{ type: "decision", decision: "Yes" }`.
-- A mocked non-yes/no response resolves to `{ type: "refusal", message: "Ask a yes/no question." }`.
 - Bundled file tools reject `..` traversal outside the workspace.
 
 ## Test 4: TUI Smoke

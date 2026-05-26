@@ -82,7 +82,7 @@ export function renderAsciiText(text: string, maxWidth: number, maxHeight: numbe
     }
   }
 
-  const lines = rows.flatMap((row, index) => index === 0 ? row : ["", ...row]).slice(0, maxHeight);
+  const lines = rows.flatMap((row, index) => index === 0 ? row : ["", "", "", ...row]).slice(0, maxHeight);
   return {
     lines,
     width: lines.reduce((max, line) => Math.max(max, line.length), 0),
