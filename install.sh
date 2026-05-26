@@ -114,7 +114,23 @@ main() {
   trap 'rm -rf "$tmpdir"' EXIT
 
   echo "Downloading ${url}..."
-  download "$url" "${tmpdir}/${artifact}.tar.gz"
+  if ! download "$url" "${tmpdir}/${artifact}.tar.gz"; then
+    echo ""
+    echo "Error: Failed to download ${url}"
+    echo ""
+    echo "This usually happens when the release assets for ${version} are still"
+    echo "being built by the GitHub Actions workflow (typically 10-20 minutes"
+    echo "after the tag is pushed)."
+    echo ""
+    echo "Options:"
+    echo "  1. Wait a few minutes and try again."
+    echo "  2. Install a specific version that is known to be ready:"
+    echo "     NAIOU_VERSION=v0.2.0 curl -fsSL https://raw.githubusercontent.com/av/naiou/main/install.sh | sh"
+    echo "  3. Build from source (requires Bun):"
+    echo "     git clone https://github.com/${REPO} && cd naiou && bun run build"
+    echo ""
+    exit 1
+  fi
 
   echo "Extracting..."
   tar xzf "${tmpdir}/${artifact}.tar.gz" -C "$tmpdir"

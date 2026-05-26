@@ -166,6 +166,7 @@
 - label: the README displays the three initial phase screenshots (question input, deciding hyperspace, final decision) side-by-side in one row at the top using 32% width HTML img tags
   command: grep -q 'img src="./assets/question.png" width="32%"' README.md && grep -q 'deciding.png" width="32%"' README.md && grep -q 'decision.png" width="32%"' README.md
   tags: [implemented]
+- install.sh provides clear guidance and actionable alternatives when the latest release assets are not yet available (e.g. 404 during download shortly after a new v* tag) @implemented
 
 # assets
 - the three screenshot assets in ./assets are WebP format (question.webp, deciding.webp, decision.webp) converted at high quality (minimal perceptible loss) from the original high-resolution captures for significantly smaller file sizes @implemented
